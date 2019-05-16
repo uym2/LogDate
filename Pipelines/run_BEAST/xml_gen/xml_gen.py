@@ -2,12 +2,14 @@
 
 from sys import argv
 from sequence_lib import read_fasta
+import re
 
 template_file = argv[1]
 sampling_time = argv[2]
 sequence_file = argv[3]
 tree_file = argv[4]
-output_file = argv[5]
+log_file = argv[5]
+output_file = argv[6]
 
 
 def write_tree(tree_file,fout):
@@ -79,4 +81,9 @@ with open(template_file,'r') as fin:
                 break
 
         for line in fin:
-            fout.write(line)    
+            if line.strip()[:17] == "<log id=\"fileLog\"":
+                fout.write(re.sub("fileName=.*txt","fileName=\""+log_file+".log.txt",line))
+            elif line.strip()[:8] == "<logTree":
+                fout.write(re.sub("fileName=.*txt","fileName=\""+log_file+".tree.txt",line))
+            else:    
+                fout.write(line)    
