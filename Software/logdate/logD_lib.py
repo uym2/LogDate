@@ -1,10 +1,46 @@
 from dendropy import Tree,TaxonNamespace
 import numpy as np
-#from QP import quadprog_solve_qp, cvxopt_solve_qp
 from math import exp,log, sqrt
 from scipy.stats.stats import pearsonr
 from scipy.optimize import minimize
 from os.path import basename, dirname, splitext,realpath,join,normpath,isdir,isfile,exists
+from subprocess import check_output,call
+from tempfile import mkdtemp
+from shutil import copyfile, rmtree
+from os import remove
+
+lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
+
+def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None):
+    wdir = run_lsd(tree,sampling_time,outputDir=lsdDir)
+    
+    x0 = read_lsd_results(wdir)
+    x1 = [1.]*len(x0)
+    x1[-1] = x0[-1] 
+    smpl_times = {}
+
+    with open(sampling_time,"r") as fin:
+        fin.readline()
+        for line in fin:
+            name,time = line.split()
+            smpl_times[name] = float(time)
+
+
+    mu = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
+    
+    if lsdDir is None:
+        rmtree(wdir)
+
+    return mu    
+
+def run_lsd(tree,sampling_time,outputDir=None):
+    wdir = outputDir if outputDir is not None else mkdtemp()
+    treefile = normpath(join(wdir,"mytree.tre"))
+    print(treefile)
+    tree.write_to_path(treefile,"newick")
+    call([lsd_exec,"-i",treefile,"-d",sampling_time,"-v","-c"])
+    return wdir
+        
 
 def read_lsd_results(inputDir):
 # suppose LSD was run on the "mytree.newick" and all the outputs are placed inside inputDir
@@ -29,7 +65,7 @@ def read_lsd_results(inputDir):
     tree.encode_bipartitions()
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
-    x0 = [0]*N + [mu]
+    x0 = [10**-10]*N + [mu]
     
     idx = 0
     brlen_map = {}
@@ -47,7 +83,7 @@ def read_lsd_results(inputDir):
         if not node is tree2.seed_node:
             key = node.bipartition
             idx,el = brlen_map[key]
-            if el > 0:
+            if el > 0 and node.edge_length>0:
                 x0[idx] = node.edge_length/float(el)
 
     return x0        
@@ -121,20 +157,6 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     for node in tree.postorder_node_iter():
         if node is not tree.seed_node:
             node.edge_length *= x[node.idx]/s
-    
-    '''
-    for node in tree.postorder_node_iter():
-        if node.is_leaf():
-            #node.time = node.smplTime
-            node.time = -node.constraint[N]
-            #print(node.taxon.label + " " + str(node.time))
-        else:
-            children = list(node.child_node_iter())
-            node.time = children[0].time - x[children[0].idx]*children[0].edge_length/s
-            #print(node.label +  " " + str(node.time))
-        #if node is not tree.seed_node:
-        #    node.edge_length *= x[node.idx]/s
-    '''
 
-    return s
+    return s,f1(x)
 
