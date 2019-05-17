@@ -147,9 +147,9 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     #bounds = [(0.00000001,999999)]*(N+1)
     
     if brScale:
-        result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_eq,method="SLSQP")
+        result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True})
     else:
-        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=cons_eq,method="SLSQP")
+        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True})
     x = result.x
     s = x[N]
     
