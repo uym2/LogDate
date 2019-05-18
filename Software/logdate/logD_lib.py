@@ -8,6 +8,7 @@ from subprocess import check_output,call
 from tempfile import mkdtemp
 from shutil import copyfile, rmtree
 from os import remove
+from copy import deepcopy
 
 lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
 
@@ -26,12 +27,14 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None)
             smpl_times[name] = float(time)
 
 
-    mu = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
+    mu,f,x = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
     
     if lsdDir is None:
         rmtree(wdir)
 
-    return mu    
+    s_tree,t_tree = scale_tree(tree,x) 
+
+    return mu,f,x,s_tree,t_tree   
 
 def run_lsd(tree,sampling_time,outputDir=None):
     wdir = outputDir if outputDir is not None else mkdtemp()
@@ -141,10 +144,6 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = [(0.00000001,999999)]*(N+1)
     args = (b)
-    #x1 = minimize(fun=f0,x0=x0,args=args,bounds=bounds,constraints=cons_eq+cons_ineq,method="SLSQP").x
-    
-    #x0 = [1.]*N + [0.02]
-    #bounds = [(0.00000001,999999)]*(N+1)
     
     if brScale:
         result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True})
@@ -154,9 +153,43 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     s = x[N]
     
     
+    #for node in tree.postorder_node_iter():
+    #    if node is not tree.seed_node:
+    #        node.edge_length *= x[node.idx]/s
+
+    return s,f1(x),x
+
+def scale_tree(tree,x):
+    taxa = tree.taxon_namespace
+    s_tree = Tree.get(data=tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
+
+    tree.is_rooted = True
+    tree.encode_bipartitions()
+    s_tree.encode_bipartitions()
+
+    mapping = {}
+    mu = x[-1]
+
     for node in tree.postorder_node_iter():
         if node is not tree.seed_node:
-            node.edge_length *= x[node.idx]/s
+            key = node.bipartition    
+            mapping[key] = node.idx
 
-    return s,f1(x)
+    count = 0
+    for node in s_tree.postorder_node_iter():
+        if node is not s_tree.seed_node:
+            if node.bipartition in mapping:
+                idx = mapping[node.bipartition]
+                node.edge_length *= x[idx]
+                count += 1
+    
+    print(len(x)-1)
+    print(count)
 
+    t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
+    
+    for node in t_tree.postorder_node_iter():
+        if node is not t_tree.seed_node:
+            node.edge_length /= mu
+
+    return s_tree,t_tree        
