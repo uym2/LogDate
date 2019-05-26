@@ -100,7 +100,7 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
         return sum([log(y)*log(y) for y in x[:-1]])
     
     def f2(x,*args):
-        return sum([b*log(y)*log(y) for (y,b) in zip(x[:-1],args[0])])
+        return sum([log(1+sqrt(b))*log(y)*log(y) for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,a):    
         return sum([ x[i]*a[i] for i in range(len(x)) ])

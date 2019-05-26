@@ -40,11 +40,9 @@ for node in b_tree.postorder_node_iter():
         
 for node in c_tree.postorder_node_iter():
     if node is not c_tree.seed_node:
-        b = int(mapping[node.bipartition]*l+1)
-        ld = int(node.edge_length*r*l+1)
+        b = int(mapping[node.bipartition]*l)
+        ld = int(node.edge_length*r*l)
         llh += log(poisson.pmf(b,ld))
 
 with open(args["output"],'w') as fout:
-    fout.write("Log-likelihood: " + str(llh))
-
-
+    fout.write(str(llh) + "\n")
