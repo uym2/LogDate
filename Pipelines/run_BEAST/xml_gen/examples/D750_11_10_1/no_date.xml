@@ -759,6 +759,9 @@
 			<parameter idref="constant.popSize"/>
 		</scaleOperator>
 		<upDownOperator scaleFactor="0.75" weight="3">
+			<up>
+				<parameter idref="clock.rate"/>
+			</up>
 			<down>
 				<parameter idref="treeModel.allInternalNodeHeights"/>
 			</down>
