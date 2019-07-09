@@ -27,7 +27,7 @@ for tree in myTrees:
     if nrep is None:
         mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],lsdDir=lsdDir)
     else:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],nrep=rep,min_nleaf=10)
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],nrep=nrep,min_nleaf=10)
 
 t_tree.write_to_path(args["output"],"newick")
 if args["scaledTree"]:
