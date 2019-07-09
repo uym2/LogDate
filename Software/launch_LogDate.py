@@ -13,6 +13,7 @@ parser.add_argument("-o","--output",required=True,help="The output trees with br
 parser.add_argument("-s","--scaledTree",required=False,help="The output trees with branch lengths scaled")
 parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
 parser.add_argument("-b","--brScale",required=False,action='store_true',help="Do branch length scaling. Default: NO")
+parser.add_argument("-p","--rep",required=False, help="The number of random replicates for initialization. Default: use lsd initialization instead")
 
 args = vars(parser.parse_args())
 
@@ -20,10 +21,13 @@ myTrees = TreeList.get_from_path(args["input"],'newick')
 sampling_time = args["samplingTime"]
 rootAge = float(args["rootAge"]) if args["rootAge"] else None
 lsdDir = args["tempdir"] if args["tempdir"] else None
+nrep = int(args["rep"]) if args["rep"] else None
 
 for tree in myTrees:
-    mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],lsdDir=lsdDir)
-    #mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],nrep=10,min_nleaf=10)
+    if nrep is None:
+        mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],lsdDir=lsdDir)
+    else:
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],nrep=rep,min_nleaf=10)
 
 t_tree.write_to_path(args["output"],"newick")
 if args["scaledTree"]:
@@ -31,4 +35,3 @@ if args["scaledTree"]:
 
 print("Clock rate: " + str(mu))
 print("Log score: " + str(f))
-
