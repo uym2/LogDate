@@ -2,15 +2,141 @@ from dendropy import Tree,TaxonNamespace
 import numpy as np
 from math import exp,log, sqrt
 from scipy.stats.stats import pearsonr
-from scipy.optimize import minimize
+from scipy.optimize import minimize, LinearConstraint,Bounds
 from os.path import basename, dirname, splitext,realpath,join,normpath,isdir,isfile,exists
 from subprocess import check_output,call
 from tempfile import mkdtemp
 from shutil import copyfile, rmtree
 from os import remove
 from copy import deepcopy
+from init_lib import random_date_init
+
 
 lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
+
+
+def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
+    def f0(x,*args):
+        return sum([b*(w-1)*(w-1) for (w,b) in zip(x[:-1],args[0])])
+
+    def f1(x):
+        a = sum([log(abs(y))**2 for y in x[:-1]])
+        #a = 0
+        #for y in x[:-1]:
+        #    if y > 0:
+        #        a += log(y)*log(y)
+        #    else:
+        #        a = 99999999999999999999999
+        #        break
+        return a
+    
+    def f2(x,*args):
+        #a = 0
+        #for (y,b) in zip(x[:-1],args[0]):
+        #    if y > 0:
+        #        a += log(1+sqrt(b))*log(y)**2
+        #    else:
+        #        a = 99999999999999999999999
+        #        break
+        a = sum([log(1+sqrt(b))*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+        #print(a)
+        return a
+
+    def f1_gradient(x):
+        return np.array([2*log(abs(z))/z for z in x[:-1]] + [0])
+    
+    def f2_gradient(x,*args):
+        return np.array([2*log(1+sqrt(b))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+
+
+    def f1_hess(x):
+        return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+    
+    def f2_hess(x,*args):
+        return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
+    cons_eq = []
+    
+    idx = 0
+    b = [1.]*N
+    
+
+    for node in tree.postorder_node_iter():
+        node.idx = idx
+        idx += 1
+        if node.is_leaf():
+            node.constraint = [0.0]*(N+1)
+            node.constraint[node.idx] = node.edge_length
+            node.constraint[N] = -smpl_times[node.taxon.label]
+            b[node.idx] = node.edge_length
+        else:
+            children = list(node.child_node_iter())           
+            a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
+	    cons_eq.append(a)
+
+            if node is not tree.seed_node: 
+                node.constraint = children[0].constraint
+                node.constraint[node.idx] = node.edge_length
+                b[node.idx] = node.edge_length
+            elif root_age is not None:
+                a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
+                cons_eq.append(a)    
+    
+    cons_bounds = []
+
+    for i in range(N+1):
+        a = [0]*(N+1)
+        a[i] = 1
+        cons_bounds.append(a)
+
+    x0 = ([1.]*N + [0.01]) if x0 is None else x0
+    bounds = Bounds(np.array([1e-3]*(N+1)),np.array([9999999]*(N+1)))
+    args = (b)
+    linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
+    bound_constraint = LinearConstraint(cons_bounds,[1e-3]*(N+1),[9999999999999]*(N+1))
+    #ieq_constraint = LinearConstraint(np.diagonal(N+1),[0.0000000000001]*(N+1),[np.inf]*(N+1))
+
+    if brScale:
+        result = minimize(fun=f2,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':5000},jac=f2_gradient,hess=f2_hess)
+    else:
+        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=[linear_constraint],method="trust-constr",options={'disp': True,'verbose':3,'maxiter':5000},jac=f1_gradient,hess=f1_hess)
+    x = result.x
+    mu = x[N]
+    
+    
+    #for node in tree.postorder_node_iter():
+    #    if node is not tree.seed_node:
+    #        node.edge_length *= x[node.idx]/s
+    fx = f2(x,args) if brScale else f1(x)
+    return mu,fx,x
+
+
+def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep=1,min_nleaf=3):
+    smpl_times = {}
+
+    with open(sampling_time,"r") as fin:
+        fin.readline()
+        for line in fin:
+            name,time = line.split()
+            smpl_times[name] = float(time)
+    
+    X = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf)
+    f_min = None
+    x_best = None
+
+    for x0 in X:
+        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0)
+        if f_min is None or f < f_min:
+            f_min = f
+            x_best = x
+    
+    s_tree,t_tree = scale_tree(tree,x_best) 
+
+
+    return x_best[-1],f_min,x_best,s_tree,t_tree   
+    
 
 def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None):
     wdir = run_lsd(tree,sampling_time,outputDir=lsdDir)
@@ -18,6 +144,7 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None)
     x0 = read_lsd_results(wdir)
     x1 = [1.]*len(x0)
     x1[-1] = x0[-1] 
+    #x1=x0
     smpl_times = {}
 
     with open(sampling_time,"r") as fin:
@@ -27,7 +154,8 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None)
             smpl_times[name] = float(time)
 
 
-    mu,f,x = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
+    #mu,f,x = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
+    mu,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
     
     if lsdDir is None:
         rmtree(wdir)
@@ -100,7 +228,7 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
         return sum([log(y)*log(y) for y in x[:-1]])
     
     def f2(x,*args):
-        return sum([log(1+sqrt(b))*log(y)*log(y) for (y,b) in zip(x[:-1],args[0])])
+        return sum([0.5*log(1+sqrt(b))*log(y)*log(y) for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,a):    
         return sum([ x[i]*a[i] for i in range(len(x)) ])
@@ -108,6 +236,15 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     def h(x,p):
         return x[p]
 
+    def g_gradient(x,a):
+        return a
+
+    def f1_gradient(x):
+        return np.array([2*log(z)/z for z in x[:-1]] + [0])
+    
+    def f2_gradient(x,*args):
+        return np.array([0.5*2*log(1+sqrt(b))*log(z)/z for (z,b) in zip(x[:-1],args[0])] + [0])
+    
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
     cons_eq = []
@@ -139,16 +276,16 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
                 b[node.idx] = node.edge_length
             elif root_age is not None:
                 a = np.array(children[0].constraint[:-1] + [children[0].constraint[-1]-root_age])
-                cons_eq.append({'type':'eq','fun':g,'args':(a,)})    
+                cons_eq.append({'type':'eq','fun':g,'args':(a,),'jac':g_gradient})    
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = [(0.00000001,999999)]*(N+1)
     args = (b)
     
     if brScale:
-        result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True})
+        result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True,'iprint':3},jac=f2_gradient)
     else:
-        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True})
+        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=cons_eq,method="SLSQP",jac=f1_gradient ,options={'maxiter': 1500, 'ftol': 1e-10,'disp': True,'iprint':3})
     x = result.x
     s = x[N]
     

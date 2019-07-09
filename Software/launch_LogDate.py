@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd
+from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init
 from dendropy import TreeList
 import argparse
 
@@ -23,6 +23,7 @@ lsdDir = args["tempdir"] if args["tempdir"] else None
 
 for tree in myTrees:
     mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],lsdDir=lsdDir)
+    #mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],nrep=10,min_nleaf=10)
 
 t_tree.write_to_path(args["output"],"newick")
 if args["scaledTree"]:
