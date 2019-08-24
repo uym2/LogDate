@@ -19,5 +19,12 @@ qplot(d,value/d,data=g,group=d,geom="violin")+scale_y_log10()+facet_wrap(.~L,nco
 ggplot(aes(x=x/0.1),data=data.frame(x=sample(d=0.1,L=500,n=10000)))+stat_ecdf()+stat_function(
   fun =function(x,y=0.1,L=500) {ppois(q = round(L*h(x*y)), lambda = h(y)*L )}, color="red")
 
-ggplot(data.frame(x = c(0, 10)), aes(x))+stat_function(fun =function(x,y=0.1,L=500) {-log( dpois(x = round(L*h(x*y)), lambda = h(y)*L ))}, color="red")
+m=2
+d=0.1
+ll=500
+ggplot(data.frame(x = c(1/m, m)), aes(x))+stat_function(fun =function(x,y=d,L=ll) {(-log( dpois(x = round(L*h(x*y) ), lambda = h(y)*L )) +  log( dpois(x = round(L*h(y) ) , lambda = h(y)*L )))/(-log( dpois(x = round(L*h(m*y) ), lambda = h(y)*L )) +  log( dpois(x = round(L*h(y) ) , lambda = h(y)*L ))) }, color="red")+
+  stat_function(fun =function(x,y=0.1,L=500) {(1/d*(1-x)^2)/(1/d*(1-m)^2)}, color="blue")+
+  stat_function(fun =function(x,y=0.1,L=500) {log(x)*log(x)/(log(m)*log(m))}, color="black")
+
+
 
