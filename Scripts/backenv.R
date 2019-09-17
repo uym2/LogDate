@@ -19,12 +19,25 @@ qplot(d,value/d,data=g,group=d,geom="violin")+scale_y_log10()+facet_wrap(.~L,nco
 ggplot(aes(x=x/0.1),data=data.frame(x=sample(d=0.1,L=500,n=10000)))+stat_ecdf()+stat_function(
   fun =function(x,y=0.1,L=500) {ppois(q = round(L*h(x*y)), lambda = h(y)*L )}, color="red")
 
-m=2
+h=function(x) x
+m=100
 d=0.1
-ll=500
-ggplot(data.frame(x = c(1/m, m)), aes(x))+stat_function(fun =function(x,y=d,L=ll) {(-log( dpois(x = round(L*h(x*y) ), lambda = h(y)*L )) +  log( dpois(x = round(L*h(y) ) , lambda = h(y)*L )))/(-log( dpois(x = round(L*h(m*y) ), lambda = h(y)*L )) +  log( dpois(x = round(L*h(y) ) , lambda = h(y)*L ))) }, color="red")+
-  stat_function(fun =function(x,y=0.1,L=500) {(1/d*(1-x)^2)/(1/d*(1-m)^2)}, color="blue")+
+ll=1000
+d*ll
+ggplot(data.frame(x = c(1/m, m)), aes(x))+
+# stat_function(fun =function(x,y=d,L=ll) {
+#    ((-log( dpois(x = round(L*h(x*y) ), lambda = h(y)*L )) +  log( dpois(x = round(L*h(y) ) , lambda = h(y)*L ))))}, color="red")+
+#  stat_function(fun =function(x,y=d,L=ll) {
+#    ((-log( dpois(x = round(L*h(y) ), lambda = h(y*x)*L )) +  log( dpois(x = round(L*h(y) ) , lambda = h(y)*L ))))}, color="green")+
+  stat_function(fun =function(x,y=0.1,L=500) {((log(x)-x)-(log(1)-1))/((log(m)-m)-(log(1)-1))}, color="blue")+
   stat_function(fun =function(x,y=0.1,L=500) {log(x)*log(x)/(log(m)*log(m))}, color="black")
+#stat_function(fun =function(x,y=0.1,L=500) {(1/d*(1-x)^2)/(1/d*(1-m)^2)}, color="blue")
 
+c(1/2*qchisq(p=0.05,df=2*ll*d)/(ll*d),1/2*qchisq(p=0.95,df=2*ll*d+2)/(ll*d))
 
-
+ggplot(data.frame(x = c(0.001,2)), aes(x))+geom_hline(yintercept = 1,color="red")+
+  stat_function(fun=function(x) 1/2*qchisq(p=0.05,df=2*ll*x)/(ll*x))+
+  stat_function(fun=function(x) 1/2*qchisq(p=0.95,df=2*ll*x+2)/(ll*x))+
+  stat_function(fun=function(x) 1/2*qchisq(p=0.2,df=2*ll*x)/(ll*x))+
+  stat_function(fun=function(x) 1/2*qchisq(p=0.8,df=2*ll*x+2)/(ll*x))+
+  scale_y_log10()+scale_x_log10()
