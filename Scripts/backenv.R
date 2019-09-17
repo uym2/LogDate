@@ -35,9 +35,10 @@ ggplot(data.frame(x = c(1/m, m)), aes(x))+
 
 c(1/2*qchisq(p=0.05,df=2*ll*d)/(ll*d),1/2*qchisq(p=0.95,df=2*ll*d+2)/(ll*d))
 
+
 ggplot(data.frame(x = c(0.001,2)), aes(x))+geom_hline(yintercept = 1,color="red")+
   stat_function(fun=function(x) 1/2*qchisq(p=0.05,df=2*ll*x)/(ll*x))+
   stat_function(fun=function(x) 1/2*qchisq(p=0.95,df=2*ll*x+2)/(ll*x))+
-  stat_function(fun=function(x) 1/2*qchisq(p=0.2,df=2*ll*x)/(ll*x))+
-  stat_function(fun=function(x) 1/2*qchisq(p=0.8,df=2*ll*x+2)/(ll*x))+
+  stat_function(fun=function(x) 1/2*qchisq(p=0.2,df=2*ll*x)/(ll*x),color="blue")+
+  stat_function(fun=function(x) 1/2*qchisq(p=0.8,df=2*ll*x+2)/(ll*x),color="blue")+
   scale_y_log10()+scale_x_log10()
