@@ -1,7 +1,6 @@
 from dendropy import Tree,TaxonNamespace
 import numpy as np
 from math import exp,log, sqrt
-from scipy.stats.stats import pearsonr
 from scipy.optimize import minimize, LinearConstraint,Bounds
 from os.path import basename, dirname, splitext,realpath,join,normpath,isdir,isfile,exists
 from subprocess import check_output,call
@@ -9,7 +8,7 @@ from tempfile import mkdtemp
 from shutil import copyfile, rmtree
 from os import remove
 from copy import deepcopy
-from init_lib import random_date_init
+from logdate.init_lib import random_date_init
 
 
 lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
@@ -21,25 +20,10 @@ def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
 
     def f1(x):
         a = sum([log(abs(y))**2 for y in x[:-1]])
-        #a = 0
-        #for y in x[:-1]:
-        #    if y > 0:
-        #        a += log(y)*log(y)
-        #    else:
-        #        a = 99999999999999999999999
-        #        break
         return a
     
     def f2(x,*args):
-        #a = 0
-        #for (y,b) in zip(x[:-1],args[0]):
-        #    if y > 0:
-        #        a += log(1+sqrt(b))*log(y)**2
-        #    else:
-        #        a = 99999999999999999999999
-        #        break
         a = sum([log(1+sqrt(b))*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
-        #print(a)
         return a
 
     def f1_gradient(x):
@@ -74,7 +58,7 @@ def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
         else:
             children = list(node.child_node_iter())           
             a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
-	    cons_eq.append(a)
+            cons_eq.append(a)
 
             if node is not tree.seed_node: 
                 node.constraint = children[0].constraint
@@ -84,19 +68,18 @@ def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
                 a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
                 cons_eq.append(a)    
     
-    cons_bounds = []
+    #cons_bounds = []
 
-    for i in range(N+1):
-        a = [0]*(N+1)
-        a[i] = 1
-        cons_bounds.append(a)
+    #for i in range(N+1):
+    #    a = [0]*(N+1)
+    #    a[i] = 1
+    #    cons_bounds.append(a)
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = Bounds(np.array([1e-3]*(N+1)),np.array([9999999]*(N+1)))
     args = (b)
     linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
-    bound_constraint = LinearConstraint(cons_bounds,[1e-3]*(N+1),[9999999999999]*(N+1))
-    #ieq_constraint = LinearConstraint(np.diagonal(N+1),[0.0000000000001]*(N+1),[np.inf]*(N+1))
+    #bound_constraint = LinearConstraint(cons_bounds,[1e-3]*(N+1),[9999999999999]*(N+1))
 
     if brScale:
         result = minimize(fun=f2,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':5000},jac=f2_gradient,hess=f2_hess)
@@ -106,9 +89,6 @@ def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     mu = x[N]
     
     
-    #for node in tree.postorder_node_iter():
-    #    if node is not tree.seed_node:
-    #        node.edge_length *= x[node.idx]/s
     fx = f2(x,args) if brScale else f1(x)
     return mu,fx,x
 
