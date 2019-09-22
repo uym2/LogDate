@@ -14,7 +14,7 @@ parser.add_argument("-o","--output",required=True,help="The output trees with br
 parser.add_argument("-s","--scaledTree",required=False,help="The output trees with branch lengths scaled")
 parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
 parser.add_argument("-c","--CI",required=False,action='store_true',help="Use confidence interval of Poisson in the objective function. Default: NO")
-parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log'. Default: No weighting")
+parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log', 'lsd'. Default: No weighting")
 parser.add_argument("-p","--rep",required=False, help="The number of random replicates for initialization. Default: use lsd initialization instead")
 parser.add_argument("-l","--seqLen",required=False, help="The length of the sequences. Default: 1000")
 
