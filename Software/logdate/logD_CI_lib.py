@@ -12,17 +12,29 @@ from os import remove
 from copy import deepcopy
 from logdate.init_lib import random_date_init
 from logdate.logD_lib import run_lsd,read_lsd_results,scale_tree
+from numpy import array
 
-def poisson_interval(k, alpha=0.05): 
+EPSILON = 10**-8
+
+def poisson_interval(data, alpha=0.05, normalized=True): 
     """
     uses chisquared info to get the poisson interval. Uses scipy.stats 
     (imports in function). 
     """
     a = alpha
-    low, high = (chi2.ppf(a/2, 2*k) / 2, chi2.ppf(1-a/2, 2*k + 2) / 2)
-    if k == 0: 
-        low = 0.0
-    return low, high
+    k = array([ x for x in data ])
+
+    low  = chi2.ppf(a/2, 2*k) / 2
+    high = chi2.ppf(1-a/2, 2*k + 2) / 2
+
+    for i,x in enumerate(k):
+        if x == 0:
+            low[i] = EPSILON
+        if normalized:
+            low[i] = low[i]/x if x > 0 else low[i]
+            high[i] = high[i]/x if x > 0 else high[i]/EPSILON
+
+    return low,high
 
 def setup_constr(tree,smpl_times,root_age=None,seqLen=1000):
     n = len(list(tree.leaf_node_iter()))
@@ -58,40 +70,50 @@ def setup_constr(tree,smpl_times,root_age=None,seqLen=1000):
 
     return bounds, linear_constraint, B
 
-def logCI(bounds,linear_constraint,B,x0=None):
-    def g(y,l,u):
+def logCI(bounds,linear_constraint,B,x0=None,alpha=0.05):
+    def g(y,l,u,alpha=0.05):
         if y < l:
-            return (log(abs(y))-log(abs(l)))**2;
+            return (1-alpha)*(log(abs(y))-log(abs(l)))**2 + alpha*(log(abs(y)))**2
         elif y > u:
-            return (log(abs(y))-log(abs(u)))**2;
+            return (1-alpha)*(log(abs(y))-log(abs(u)))**2 + alpha*(log(abs(y)))**2
         else:
-            return 0
+            return alpha*log(abs(y))**2
             
-    def g_first(y,l,u):
+    def g_first(y,l,u,alpha=0.05):
         if y < l:
-            return 2*(log(y)-log(l))/y
+            return 2*(log(abs(y))-(1-alpha)*log(l))/y
         elif y > u:    
-            return 2*(log(y)-log(u))/y
+            return 2*(log(abs(y))-(1-alpha)*log(u))/y
         else:
-            return 0
+            return 2*alpha*log(abs(y))/y
     
     def f(x,*args):
-        CI = args[0]
-        return sum([ g(y,l,u) for (y,(l,u)) in zip(x[:-1],CI) ])
+        if (len(args) > 1):
+            low = args[0]
+            high = args[1]
+            alpha = args[2]
+        else:
+            low = args[0][0]
+            high = args[0][1]
+            alpha = args[0][2]
+                
+        return sum([ g(y,l,u,alpha=alpha) for (y,l,u) in zip(x[:-1],low,high) ])
             
     def f_gradient(x,*args):
-        CI = args[0]
-        return np.array([ g_first(y,l,u) for (y,(l,u)) in zip(x[:-1],CI) + [0]  ])
+        low = args[0]
+        high = args[1]
+        alpha = args[2]
+        return np.array( [ g_first(y,l,u,alpha=alpha) for (y,l,u) in zip(x[:-1],low,high) ] + [0]  )
             
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    CI = poisson_interval(B)
-    args = (CI)
+    low,high = poisson_interval(B,alpha=alpha,normalized=True)
+    args = (low,high,alpha)
 
     result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],jac=f_gradient,options={'disp':True,'verbose':3,'maxiter':5000})
    
     x = result.x
     mu = x[-1]
-   
+    
     fx = f(x,args)
     return mu,fx,x                 
 

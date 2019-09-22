@@ -11,34 +11,60 @@ from copy import deepcopy
 from logdate.init_lib import random_date_init
 
 
-lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
+#lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
+lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/src/lsd")) # temporary solution. Will not work for Windows or Mac
 
-
-def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
-    def f0(x,*args):
-        return sum([b*(w-1)*(w-1) for (w,b) in zip(x[:-1],args[0])])
-
-    def f1(x):
-        a = sum([log(abs(y))**2 for y in x[:-1]])
-        return a
+def f_logDate_lsd(c=10,s=1000):
+# follow the LSD paper for weighting strategy
+    def f(x,*args):
+        return sum([(b+c/s)/s*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
     
-    def f2(x,*args):
-        a = sum([log(1+sqrt(b))*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
-        return a
+    def g(x,*args):
+        return np.array([2*(b+c/s)/s*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
-    def f1_gradient(x):
+    def h(x,*args):
+        return np.diag([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
+def f_logDate():
+    def f(x):
+        return sum([log(abs(y))**2 for y in x[:-1]])
+
+    def g(x):
         return np.array([2*log(abs(z))/z for z in x[:-1]] + [0])
-    
-    def f2_gradient(x,*args):
+
+    def h(x):
+        return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+
+    return f,g,h
+
+def f_logDate_sqrt_b():
+    def f(x,*args):
+        return sum([sqrt(b)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+
+    def g(x,*args):
+        return np.array([2*sqrt(b)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+
+    def h(x,*args):
+        return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
+
+def f_logDate_log_b():
+    def f(x,*args):
+        a = sum([log(1+sqrt(b))*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+
+    def g(x,*args):
         return np.array([2*log(1+sqrt(b))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
+    def h(x,*args):
+        return np.array([2*log(1+sqrt(b))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
-    def f1_hess(x):
-        return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+    return f,g,h    
     
-    def f2_hess(x,*args):
-        return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
-
+def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
     cons_eq = []
@@ -67,33 +93,33 @@ def logIt(tree,smpl_times,root_age=None,brScale=False,x0=None):
             elif root_age is not None:
                 a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
                 cons_eq.append(a)    
-    
-    #cons_bounds = []
-
-    #for i in range(N+1):
-    #    a = [0]*(N+1)
-    #    a[i] = 1
-    #    cons_bounds.append(a)
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = Bounds(np.array([1e-3]*(N+1)),np.array([9999999]*(N+1)))
     args = (b)
     linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
-    #bound_constraint = LinearConstraint(cons_bounds,[1e-3]*(N+1),[9999999999999]*(N+1))
 
-    if brScale:
-        result = minimize(fun=f2,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':5000},jac=f2_gradient,hess=f2_hess)
+    if f_obj is not None:
+        f,g,h = f_obj(x,args)
+    elif brScale == 'sqrt':
+        f,g,h = f_logDate_sqrt_b()
+    elif brScale == 'log':
+        f,g,h = f_logDate_log_b()
+    elif brScale == 'lsd':
+        f,g,h = f_logDate_lsd(c=c,s=seqLen)    
     else:
-        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=[linear_constraint],method="trust-constr",options={'disp': True,'verbose':3,'maxiter':5000},jac=f1_gradient,hess=f1_hess)
+        f,g,h = f_logDate()    
+
+    result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':5000},jac=g,hess=h)
+    
     x = result.x
     mu = x[N]
-    
-    
-    fx = f2(x,args) if brScale else f1(x)
+       
+    fx = f(x,args)
     return mu,fx,x
 
 
-def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep=1,min_nleaf=3):
+def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000):
     smpl_times = {}
 
     with open(sampling_time,"r") as fin:
@@ -107,7 +133,7 @@ def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep
     x_best = None
 
     for x0 in X:
-        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0)
+        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen)
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
@@ -118,7 +144,7 @@ def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep
     return x_best[-1],f_min,x_best,s_tree,t_tree   
     
 
-def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None):
+def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,seqLen=1000):
     wdir = run_lsd(tree,sampling_time,outputDir=lsdDir)
     
     x0 = read_lsd_results(wdir)
@@ -135,7 +161,7 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None)
 
 
     #mu,f,x = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
-    mu,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
+    mu,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1,seqLen=seqLen)
     
     if lsdDir is None:
         rmtree(wdir)
@@ -299,9 +325,6 @@ def scale_tree(tree,x):
                 idx = mapping[node.bipartition]
                 node.edge_length *= x[idx]
                 count += 1
-    
-    print(len(x)-1)
-    print(count)
 
     t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
     
