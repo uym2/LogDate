@@ -14,7 +14,7 @@ parser.add_argument("-o","--output",required=True,help="The output trees with br
 parser.add_argument("-s","--scaledTree",required=False,help="The output trees with branch lengths scaled")
 parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
 parser.add_argument("-c","--CI",required=False,action='store_true',help="Use confidence interval of Poisson in the objective function. Default: NO")
-parser.add_argument("-b","--brScale",required=False,action='store_true',help="Do branch length scaling. Default: NO")
+parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log'. Default: No weighting")
 parser.add_argument("-p","--rep",required=False, help="The number of random replicates for initialization. Default: use lsd initialization instead")
 parser.add_argument("-l","--seqLen",required=False, help="The length of the sequences. Default: 1000")
 
@@ -27,15 +27,16 @@ lsdDir = args["tempdir"] if args["tempdir"] else None
 nrep = int(args["rep"]) if args["rep"] else None
 useCI = args["CI"]
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
+brScale = args["brScale"]
 
 for tree in myTrees:
     if useCI:
         mu,f,x,s_tree,t_tree = logCI_with_lsd(tree,sampling_time,root_age=rootAge,seqLen=seqLen,lsdDir=lsdDir)
     else:    
         if nrep is None:
-            mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],lsdDir=lsdDir)
+            mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=lsdDir,seqLen=seqLen)
         else:
-            mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=args["brScale"],nrep=nrep,min_nleaf=10)
+            mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10)
 
 t_tree.write_to_path(args["output"],"newick")
 if args["scaledTree"]:
