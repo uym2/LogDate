@@ -17,6 +17,7 @@ parser.add_argument("-c","--CI",required=False,action='store_true',help="Use con
 parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log', 'lsd'. Default: No weighting")
 parser.add_argument("-p","--rep",required=False, help="The number of random replicates for initialization. Default: use lsd initialization instead")
 parser.add_argument("-l","--seqLen",required=False, help="The length of the sequences. Default: 1000")
+parser.add_argument("-m","--maxIter",required=False, help="The maximum number of iterations for optimization. Default: 50000")
 
 args = vars(parser.parse_args())
 
@@ -28,15 +29,16 @@ nrep = int(args["rep"]) if args["rep"] else None
 useCI = args["CI"]
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 brScale = args["brScale"]
+maxIter = args["maxIter"] if args["maxIter"] else 50000
 
 for tree in myTrees:
     if useCI:
-        mu,f,x,s_tree,t_tree = logCI_with_lsd(tree,sampling_time,root_age=rootAge,seqLen=seqLen,lsdDir=lsdDir)
+       mu,f,x,s_tree,t_tree = logCI_with_lsd(tree,sampling_time,root_age=rootAge,seqLen=seqLen,lsdDir=lsdDir,maxIter=maxIter)
     else:    
         if nrep is None:
-            mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=lsdDir,seqLen=seqLen)
+            mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=lsdDir,seqLen=seqLen,maxIter=maxIter)
         else:
-            mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10)
+            mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time,root_age=rootAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter)
 
 t_tree.write_to_path(args["output"],"newick")
 if args["scaledTree"]:

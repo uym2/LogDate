@@ -15,6 +15,7 @@ from logdate.logD_lib import run_lsd,read_lsd_results,scale_tree
 from numpy import array
 
 EPSILON = 10**-8
+MAX_ITER = 50000
 
 def poisson_interval(data, alpha=0.05, normalized=True): 
     """
@@ -70,7 +71,7 @@ def setup_constr(tree,smpl_times,root_age=None,seqLen=1000):
 
     return bounds, linear_constraint, B
 
-def logCI(bounds,linear_constraint,B,x0=None,alpha=0.05):
+def logCI(bounds,linear_constraint,B,x0=None,alpha=0.05,maxIter=MAX_ITER):
     def g(y,l,u,alpha=0.05):
         if y < l:
             return (1-alpha)*(log(abs(y))-log(abs(l)))**2 + alpha*(log(abs(y)))**2
@@ -109,7 +110,7 @@ def logCI(bounds,linear_constraint,B,x0=None,alpha=0.05):
     low,high = poisson_interval(B,alpha=alpha,normalized=True)
     args = (low,high,alpha)
 
-    result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],jac=f_gradient,options={'disp':True,'verbose':3,'maxiter':5000})
+    result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],jac=f_gradient,options={'disp':True,'verbose':3,'maxiter':maxIter})
    
     x = result.x
     mu = x[-1]
@@ -117,7 +118,7 @@ def logCI(bounds,linear_constraint,B,x0=None,alpha=0.05):
     fx = f(x,args)
     return mu,fx,x                 
 
-def logCI_with_lsd(tree,sampling_time,root_age=None,seqLen=1000,lsdDir=None):
+def logCI_with_lsd(tree,sampling_time,root_age=None,seqLen=1000,lsdDir=None,maxIter=MAX_ITER):
     wdir = run_lsd(tree,sampling_time,outputDir=lsdDir)
     
     x0 = read_lsd_results(wdir)
@@ -133,7 +134,7 @@ def logCI_with_lsd(tree,sampling_time,root_age=None,seqLen=1000,lsdDir=None):
     
 
     bounds, linear_constraint, B = setup_constr(tree,smpl_times,root_age=root_age,seqLen=seqLen)
-    mu,f,x = logCI(bounds,linear_constraint,B,x0=x1)
+    mu,f,x = logCI(bounds,linear_constraint,B,x0=x1,maxIter=maxIter)
     
     if lsdDir is None:
         rmtree(wdir)
