@@ -134,15 +134,16 @@ def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep
     f_min = None
     x_best = None
 
-    for x0 in X:
-        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter)
-        if f_min is None or f < f_min:
-            f_min = f
-            x_best = x
+    for i,x0 in enumerate(X):
+        try:
+            _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter)
+            if f_min is None or f < f_min:
+                f_min = f
+                x_best = x
+                s_tree,t_tree = scale_tree(tree,x_best) 
+        except:
+            print("Error in trying init rep " + str(i+1))    
     
-    s_tree,t_tree = scale_tree(tree,x_best) 
-
-
     return x_best[-1],f_min,x_best,s_tree,t_tree   
     
 
