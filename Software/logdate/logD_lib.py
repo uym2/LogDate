@@ -30,13 +30,13 @@ def f_logDate_lsd(c=10,s=1000):
     return f,g,h
 
 def f_logDate():
-    def f(x):
+    def f(x,*args):
         return sum([log(abs(y))**2 for y in x[:-1]])
 
-    def g(x):
+    def g(x,*args):
         return np.array([2*log(abs(z))/z for z in x[:-1]] + [0])
 
-    def h(x):
+    def h(x,*args):
         return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
 
     return f,g,h
