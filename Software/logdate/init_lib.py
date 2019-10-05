@@ -67,6 +67,11 @@ def date_as_selected(tree,sampling_time,selected):
             node.as_leaf = True
     
     preprocess_node(tree.seed_node)
+    if t0 is None:
+        epsilon_t = 1e-3
+        t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
+        t0 = t_min - epsilon_t
+
     tree.seed_node.time = t0
     date_from_root_and_leaves(tree.seed_node)
         
@@ -164,7 +169,6 @@ def compute_date_as_root(a_node,t0=None):
         t_star = (STS*SD - SDT*ST) / (SD*ST - n*SDT)
         if t_star < t_min and (t0 is None or t_star > t0):
             t = t_star
-    
     return t
                 
 def date_from_root_and_leaves(root_node):
