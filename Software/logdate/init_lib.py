@@ -4,6 +4,8 @@ from sys import argv
 from math import log, sqrt, exp
 from random import getrandbits
 
+EPSILON_nu = 1e-5
+
 
 def random_date_init(tree, sampling_time, rep, min_nleaf=3):
     history = []
@@ -55,8 +57,9 @@ def date_as_selected(tree,sampling_time,selected):
     preprocess_tree(tree,sampling_time)
 
     t0 = compute_date_as_root(tree.seed_node)
-    # dating
+    
 
+    # dating
     for node in selected:
         # date the clade that is rooted at node
         preprocess_node(node)
@@ -66,11 +69,12 @@ def date_as_selected(tree,sampling_time,selected):
             date_from_root_and_leaves(node)
             node.as_leaf = True
     
-    preprocess_node(tree.seed_node)
     if t0 is None:
         epsilon_t = 1e-3
         t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
         t0 = t_min - epsilon_t
+    
+    preprocess_node(tree.seed_node)
 
     tree.seed_node.time = t0
     date_from_root_and_leaves(tree.seed_node)
@@ -178,7 +182,7 @@ def date_from_root_and_leaves(root_node):
         if not node.is_leaf() and not node.as_leaf:
             stack = stack + node.child_nodes()
         if node.time is not None:
-            assert node.time >= root_node.time
+            assert node.time > root_node.time
             continue
         u = node.nearest_leaf
         delta_t = node.nearest_t - node.parent_node.time
@@ -187,9 +191,10 @@ def date_from_root_and_leaves(root_node):
         while u != node:
             v = u.parent_node
             v.time = u.time - u.edge_length/mu
-            assert v.time >= root_node.time
+            assert v.time < u.time
+            assert v.time > root_node.time
             u = v  
-        assert node.time >= root_node.time    
+        assert node.time > root_node.time    
 
             
             
@@ -200,6 +205,8 @@ def compute_mu_from_dated_tree(tree):
     x0 = []
     for node in tree.postorder_node_iter():
         if node is not tree.seed_node:
+            if (node.time == node.parent_node.time):
+                continue
             alpha = node.edge_length / (node.time - node.parent_node.time)
             w = log(1 + sqrt(node.edge_length))
             a += w
@@ -207,9 +214,11 @@ def compute_mu_from_dated_tree(tree):
             c += w*(log(alpha)**2)
 
     mu = exp(-b/2/a)
+  
     for node in tree.postorder_node_iter():
         if node is not tree.seed_node:
-            x0.append(mu*(node.time - node.parent_node.time)/node.edge_length)
+            nu = mu*(node.time - node.parent_node.time)/node.edge_length if (node.time != node.parent_node.time) else EPSILON_nu
+            x0.append(nu)
 
     x0.append(mu)        
             
