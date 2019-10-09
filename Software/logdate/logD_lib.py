@@ -14,8 +14,10 @@ from logdate.init_lib import random_date_init
 MAX_ITER = 50000
 MIN_RATE = 1e-10
 
-#lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
-lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/src/lsd")) # temporary solution. Will not work for Windows or Mac
+
+lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
+
+lsd_exec=normpath(join(dirname(realpath(__file__)),lsd_file))
 
 def f_logDate_lsd(c=10,s=1000):
 # follow the LSD paper for weighting strategy
