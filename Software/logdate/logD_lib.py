@@ -12,6 +12,7 @@ from logdate.init_lib import random_date_init
 
 
 MAX_ITER = 50000
+MIN_RATE = 1e-10
 
 #lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
 lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/src/lsd")) # temporary solution. Will not work for Windows or Mac
@@ -97,7 +98,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 cons_eq.append(a)    
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    bounds = Bounds(np.array([1e-3]*(N+1)),np.array([9999999]*(N+1)))
+    bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
     args = (b)
     linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
 
