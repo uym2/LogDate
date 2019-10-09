@@ -9,7 +9,7 @@ from shutil import copyfile, rmtree
 from os import remove
 from copy import deepcopy
 from logdate.init_lib import random_date_init
-
+import platform
 
 MAX_ITER = 50000
 MIN_RATE = 1e-10
