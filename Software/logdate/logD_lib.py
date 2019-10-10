@@ -9,12 +9,15 @@ from shutil import copyfile, rmtree
 from os import remove
 from copy import deepcopy
 from logdate.init_lib import random_date_init
-
+import platform
 
 MAX_ITER = 50000
+MIN_RATE = 1e-10
 
-#lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/bin/lsd.exe")) # temporary solution. Will not work for Windows or Mac
-lsd_exec=normpath(join(dirname(realpath(__file__)),"../lsd-0.2/src/lsd")) # temporary solution. Will not work for Windows or Mac
+
+lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
+
+lsd_exec=normpath(join(dirname(realpath(__file__)),lsd_file))
 
 def f_logDate_lsd(c=10,s=1000):
 # follow the LSD paper for weighting strategy
@@ -97,7 +100,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 cons_eq.append(a)    
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    bounds = Bounds(np.array([1e-3]*(N+1)),np.array([9999999]*(N+1)))
+    bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
     args = (b)
     linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
 
@@ -135,14 +138,19 @@ def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep
     x_best = None
 
     for i,x0 in enumerate(X):
-        try:
-            _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter)
-            if f_min is None or f < f_min:
-                f_min = f
-                x_best = x
-                s_tree,t_tree = scale_tree(tree,x_best) 
-        except:
-            print("Error in trying init rep " + str(i+1))    
+        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter)
+        if f_min is None or f < f_min:
+            f_min = f
+            x_best = x
+            s_tree,t_tree = scale_tree(tree,x_best)
+            print("Found a better log-scored configuration")
+            print("New mutation rate: " + str(x_best[-1]))
+            print("New log score: " + str(f_min))
+            print("Scaled tree")
+            print(s_tree.as_string("newick"))
+            print("Time tree")
+            print(t_tree.as_string("newick"))
+             
     
     return x_best[-1],f_min,x_best,s_tree,t_tree   
     

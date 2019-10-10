@@ -29,7 +29,7 @@ nrep = int(args["rep"]) if args["rep"] else None
 useCI = args["CI"]
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 brScale = args["brScale"]
-maxIter = args["maxIter"] if args["maxIter"] else 50000
+maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 
 
 with open(args["output"],"w") as fout:
