@@ -102,7 +102,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
     args = (b)
-    linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
+    linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
 
     if f_obj is not None:
         f,g,h = f_obj(x,args)
@@ -124,16 +124,23 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     return mu,fx,x
 
 
-def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER):
+def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER):
     smpl_times = {}
-
-    with open(sampling_time,"r") as fin:
-        fin.readline()
-        for line in fin:
-            name,time = line.split()
-            smpl_times[name] = float(time)
     
-    X = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf)
+    if sampling_time is None:
+        if leaf_age is None:
+            leaf_age = 1
+        for node in tree.leaf_node_iter():
+            smpl_times[node.taxon.label] = leaf_age
+        if root_age is None:
+            root_age = 0    
+    else:        
+        with open(sampling_time,"r") as fin:
+            fin.readline()
+            for line in fin:
+                name,time = line.split()
+                smpl_times[name] = float(time)
+    X = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age)
     f_min = None
     x_best = None
 

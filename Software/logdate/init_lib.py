@@ -7,7 +7,7 @@ from random import getrandbits
 EPSILON_nu = 1e-5
 
 
-def random_date_init(tree, sampling_time, rep, min_nleaf=3):
+def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3):
     history = []
     X = []
 
@@ -22,7 +22,7 @@ def random_date_init(tree, sampling_time, rep, min_nleaf=3):
         if x > 0 and x not in history:
             history.append(x)
             selected = list(node_bitset.fromint(x))
-            x0 = date_as_selected(tree_rep,sampling_time,selected)
+            x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
             X.append(x0)
     
     return X        
@@ -48,7 +48,7 @@ def get_node_list(tree, min_nleaf=3):
     return tuple(node_list)         
 
 
-def date_as_selected(tree,sampling_time,selected):
+def date_as_selected(tree,sampling_time,selected,rootAge=None):
 # selected is a list of nodes; it MUST be sorted in postorder 
     # add the root of tree to selected
     #selected.append(tree.seed_node)
@@ -56,8 +56,8 @@ def date_as_selected(tree,sampling_time,selected):
     # refresh initial values
     preprocess_tree(tree,sampling_time)
 
-    t0 = compute_date_as_root(tree.seed_node)
-    
+    t0 = rootAge if rootAge is not None else compute_date_as_root(tree.seed_node)
+    print(t0)    
 
     # dating
     for node in selected:
@@ -111,7 +111,7 @@ def preprocess_node(a_node):
                     min_child = c
            node.nearest_leaf = min_child.nearest_leaf
            node.nearest_t = min_child.nearest_t
-           node.delta_b = min_child.delta_b + node.edge_length
+           node.delta_b = min_child.delta_b + ( node.edge_length if node.edge_length else 0)
         else:
            stack.append((node,True))
            stack += [(x,False) for x in node.child_node_iter()]
