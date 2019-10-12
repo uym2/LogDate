@@ -15,6 +15,7 @@ parser.add_argument("-o","--output",required=True,help="The output trees with br
 parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
 parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log', 'lsd'. Default: No weighting")
 parser.add_argument("-p","--rep",required=False, help="The number of random replicates for initialization. Default: use 1 initial point")
+parser.add_argument("-s","--rseed",required=False, help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False, help="The length of the sequences. Default: 1000")
 parser.add_argument("-m","--maxIter",required=False, help="The maximum number of iterations for optimization. Default: 50000")
 
@@ -29,12 +30,13 @@ nrep = int(args["rep"]) if args["rep"] else 1
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 brScale = args["brScale"]
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
+randseed = int(args["rseed"]) if args["rseed"] else None
 
 with open(args["output"],"w") as fout:
-    for tree in myTrees:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter)
-
-        fout.write(t_tree.as_string("newick") + "\n")
+    for i,tree in enumerate(myTrees):
+        print("Dating tree " + str(i+1))
+        mu,f,x,s_tree,t_tree= logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed)
+        fout.write(t_tree.as_string("newick"))
         print("Clock rate: " + str(mu))
         print("Log score: " + str(f))
 

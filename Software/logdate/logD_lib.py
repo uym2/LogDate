@@ -12,7 +12,7 @@ from logdate.init_lib import random_date_init
 import platform
 
 MAX_ITER = 50000
-MIN_RATE = 1e-10
+MIN_RATE = 1e-5
 
 
 lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
@@ -124,7 +124,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     return mu,fx,x
 
 
-def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER):
+def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None):
     smpl_times = {}
     
     if sampling_time is None:
@@ -140,7 +140,8 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
-    X = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age)
+    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
 
@@ -159,7 +160,7 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             print(t_tree.as_string("newick"))
              
     
-    return x_best[-1],f_min,x_best,s_tree,t_tree   
+    return x_best[-1],f_min,x_best,s_tree,t_tree 
     
 
 def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,seqLen=1000,maxIter=MAX_ITER):

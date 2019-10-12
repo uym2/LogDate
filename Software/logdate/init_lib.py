@@ -2,12 +2,17 @@ from bitsets import bitset
 from dendropy import Tree,Node
 from sys import argv
 from math import log, sqrt, exp
-from random import getrandbits
+import random
 
 EPSILON_nu = 1e-5
 
 
-def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3):
+def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=None):
+    if seed is None:
+        seed = random.randint(0,1024)
+
+    random.seed(a=seed)    
+
     history = []
     X = []
 
@@ -17,15 +22,18 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3):
         k = len(node_list)  
         node_bitset = bitset('node_bitset',node_list)
 
-        x = int(getrandbits(k))
+        x = int(random.getrandbits(k))
 
-        if x > 0 and x not in history:
-            history.append(x)
-            selected = list(node_bitset.fromint(x))
-            x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
-            X.append(x0)
+        while x <= 0 or x in history:
+            x = int(random.getrandbits(k))
+
+        history.append(x)
+        selected = list(node_bitset.fromint(x))
+        x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
+        X.append(x0)
     
-    return X        
+    return X,seed   
+         
 def print_date(tree,fout=None):
     for node in tree.postorder_node_iter():
        if node is not tree.seed_node:
@@ -57,7 +65,6 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None):
     preprocess_tree(tree,sampling_time)
 
     t0 = rootAge if rootAge is not None else compute_date_as_root(tree.seed_node)
-    print(t0)    
 
     # dating
     for node in selected:
