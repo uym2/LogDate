@@ -10,6 +10,8 @@ from os import remove
 from copy import deepcopy
 from logdate.init_lib import random_date_init
 import platform
+from scipy.sparse import diags
+from scipy.sparse import csr_matrix
 
 MAX_ITER = 50000
 MIN_RATE = 1e-5
@@ -28,7 +30,9 @@ def f_logDate_lsd(c=10,s=1000):
         return np.array([2*(b+c/s)/s*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return np.diag([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        #return np.diag([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        
 
     return f,g,h
 
@@ -40,7 +44,8 @@ def f_logDate():
         return np.array([2*log(abs(z))/z for z in x[:-1]] + [0])
 
     def h(x,*args):
-        return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+        #return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+        return diags([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
 
     return f,g,h
 
@@ -52,7 +57,8 @@ def f_logDate_sqrt_b():
         return np.array([2*sqrt(b)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        #return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
 
     return f,g,h
 
@@ -65,7 +71,8 @@ def f_logDate_log_b():
         return np.array([2*log(1+sqrt(b))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
+        #return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
+        return diags([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
 
     return f,g,h    
     
@@ -82,17 +89,19 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
         node.idx = idx
         idx += 1
         if node.is_leaf():
+            node.height = 0
             node.constraint = [0.0]*(N+1)
             node.constraint[node.idx] = node.edge_length
             node.constraint[N] = -smpl_times[node.taxon.label]
             b[node.idx] = node.edge_length
         else:
             children = list(node.child_node_iter())           
+            node.height = min(children[0].height,children[1].height)
             a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
             cons_eq.append(a)
 
             if node is not tree.seed_node: 
-                node.constraint = children[0].constraint
+                node.constraint = children[0].constraint if children[0].height < children[1].height else children[1].constraint
                 node.constraint[node.idx] = node.edge_length
                 b[node.idx] = node.edge_length
             elif root_age is not None:
@@ -102,7 +111,8 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
     args = (b)
-    linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
+    linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq))
+    #linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
 
     if f_obj is not None:
         f,g,h = f_obj(x,args)
