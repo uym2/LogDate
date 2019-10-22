@@ -52,5 +52,5 @@ echo "describe plot=chrono_description;" >> $in_r8s;
 echo "end;" >> $in_r8s
 
 echo "Running r8s"
-/home/umai/my_gits/LogDate/Software/r8s_1.8/r8s -b -f $in_r8s > $out_r8s
+r8s -b -f $in_r8s > $out_r8s
 tail -n1 $out_r8s | sed "s/tree myTree = //g" > $out_tree 
