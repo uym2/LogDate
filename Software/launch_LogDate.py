@@ -3,6 +3,7 @@
 from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init
 from logdate.logD_CI_lib import logCI_with_lsd
 from dendropy import TreeList
+import treeswift
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -36,7 +37,8 @@ with open(args["output"],"w") as fout:
     for i,tree in enumerate(myTrees):
         print("Dating tree " + str(i+1))
         mu,f,x,s_tree,t_tree= logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed)
-        fout.write(t_tree.as_string("newick"))
+        t_tree_swift = treeswift.read_tree_dendropy(t_tree)
+        fout.write(t_tree_swift.newick())
         print("Clock rate: " + str(mu))
         print("Log score: " + str(f))
 
