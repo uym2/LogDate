@@ -22,7 +22,7 @@ parser.add_argument("-m","--maxIter",required=False, help="The maximum number of
 
 args = vars(parser.parse_args())
 
-myTrees = TreeList.get_from_path(args["input"],'newick')
+myTrees = TreeList.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 rootAge = float(args["rootAge"]) if args["rootAge"] else None
 leafAge = float(args["leafAge"]) if args["leafAge"] else None
