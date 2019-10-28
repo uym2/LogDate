@@ -12,9 +12,11 @@ from logdate.init_lib import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
+from logdate.util_lib import *
 
 MAX_ITER = 50000
 MIN_RATE = 1e-5
+MIN_NU = 1e-10
 
 
 lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
@@ -76,43 +78,65 @@ def f_logDate_log_b():
 
     return f,g,h    
     
-def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,maxIter=MAX_ITER):
+def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,maxIter=MAX_ITER,min_b=0):
     n = len(list(tree.leaf_node_iter()))
-    N = 2*n-2
-    cons_eq = []
+    #N = 2*n-2
+    N = len([node for node in tree.postorder_node_iter() if node is not tree.seed_node and node.edge_length > min_b])
+    cons_mtrx = []
+    cons_residue = []
     
     idx = 0
     b = [1.]*N
-    
 
     for node in tree.postorder_node_iter():
-        node.idx = idx
-        idx += 1
+        if node is not tree.seed_node and node.edge_length > min_b:
+            node.idx = idx
+            idx += 1
+        else:
+            node.idx = -1    
         if node.is_leaf():
             node.height = 0
             node.constraint = [0.0]*(N+1)
-            node.constraint[node.idx] = node.edge_length
+            node.residue = 0
+            if node.edge_length >= min_b:
+                node.constraint[node.idx] = node.edge_length
+                b[node.idx] = node.edge_length
+            else:
+                node.residue = node.edge_length
             node.constraint[N] = -smpl_times[node.taxon.label]
-            b[node.idx] = node.edge_length
         else:
             children = list(node.child_node_iter())           
             node.height = min(children[0].height,children[1].height)
             a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
-            cons_eq.append(a)
+            r = children[1].residue - children[0].residue
+            cons_mtrx.append(a)
+            cons_residue.append(r)
 
             if node is not tree.seed_node: 
-                node.constraint = children[0].constraint if children[0].height < children[1].height else children[1].constraint
-                node.constraint[node.idx] = node.edge_length
-                b[node.idx] = node.edge_length
+                if children[0].height < children[1].height:
+                    node.constraint = children[0].constraint
+                    node.residue = children[0].residue
+                else:
+                    node.constraint = children[1].constraint
+                    node.residue = children[1].residue
+                if node.edge_length > min_b:
+                    node.constraint[node.idx] = node.edge_length
+                    b[node.idx] = node.edge_length
+                else:
+                    node.residue += node.edge_length
             elif root_age is not None:
-                a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
-                cons_eq.append(a)    
+                a = children[0].constraint[:-1] + [children[0].constraint[-1]+root_age]
+                r = -children[0].residue
+                cons_mtrx.append(a)    
+                cons_residue.append(r)
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
+    bounds = Bounds(np.array([MIN_NU]*N + [MIN_RATE]),np.array([9999999]*(N+1)),keep_feasible=True)
     args = (b)
-    linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq))
-    #linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
+    print(cons_residue)
+    #linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),[0]*len(cons_mtrx),[0]*len(cons_mtrx))
+    linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),cons_residue,cons_residue)
+    #linear_constraint = LinearConstraint(cons_mtrx,[0]*len(cons_mtrx),[0]*len(cons_mtrx))
 
     if f_obj is not None:
         f,g,h = f_obj(x,args)
@@ -134,7 +158,14 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     return mu,fx,x
 
 
-def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None):
+def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,min_b="AUTO"):
+    if min_b is None:
+        min_b = 0
+    elif min_b == "AUTO":
+        min_b = minVar_bisect([node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node])     
+    
+    print("Threshold: " + str(min_b))
+
     smpl_times = {}
     
     if sampling_time is None:
@@ -150,13 +181,13 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
-    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed,min_b=min_b)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
 
     for i,x0 in enumerate(X):
-        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter)
+        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter,min_b=min_b)
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
@@ -173,11 +204,17 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
     return x_best[-1],f_min,x_best,s_tree,t_tree 
     
 
-def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,seqLen=1000,maxIter=MAX_ITER):
+def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,seqLen=1000,maxIter=MAX_ITER,min_b="AUTO"):
+    if min_b is None:
+        min_b = 0
+    elif min_b == "AUTO":
+        min_b = minVar_bisect([node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node])     
+    
     wdir = run_lsd(tree,sampling_time,outputDir=lsdDir)
     
     x0 = read_lsd_results(wdir)
-    x1 = [1.]*len(x0)
+    #x1 = [1.]*len(x0)
+    x1 = [1.]*(len([node for node in tree.postorder_node_iter() if node is not tree.seed_node and node.edge_length >= min_b])+1)
     x1[-1] = x0[-1] 
     #x1=x0
     smpl_times = {}
@@ -190,7 +227,7 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,
 
 
     #mu,f,x = calibrate_log_opt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1)
-    mu,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1,seqLen=seqLen,maxIter=maxIter)
+    mu,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x1,seqLen=seqLen,maxIter=maxIter,min_b=min_b)
     
     if lsdDir is None:
         rmtree(wdir)
@@ -282,7 +319,7 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
     
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
-    cons_eq = []
+    cons_mtrx = []
     cons_ineq = []
     
     idx = 0
@@ -303,7 +340,7 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
             children = list(node.child_node_iter())
                        
             a = np.array([ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ])
-            cons_eq.append({'type':'eq','fun':g,'args':(a,)})
+            cons_mtrx.append({'type':'eq','fun':g,'args':(a,)})
 
             if node is not tree.seed_node: 
                 node.constraint = children[0].constraint
@@ -311,16 +348,16 @@ def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):
                 b[node.idx] = node.edge_length
             elif root_age is not None:
                 a = np.array(children[0].constraint[:-1] + [children[0].constraint[-1]-root_age])
-                cons_eq.append({'type':'eq','fun':g,'args':(a,),'jac':g_gradient})    
+                cons_mtrx.append({'type':'eq','fun':g,'args':(a,),'jac':g_gradient})    
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = [(0.00000001,999999)]*(N+1)
     args = (b)
     
     if brScale:
-        result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_eq,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True,'iprint':3},jac=f2_gradient)
+        result = minimize(fun=f2,x0=x0,args=args,bounds=bounds,constraints=cons_mtrx,method="SLSQP",options={'maxiter': 1500, 'ftol': 1e-10,'disp': True,'iprint':3},jac=f2_gradient)
     else:
-        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=cons_eq,method="SLSQP",jac=f1_gradient ,options={'maxiter': 1500, 'ftol': 1e-10,'disp': True,'iprint':3})
+        result = minimize(fun=f1,x0=x0,bounds=bounds,constraints=cons_mtrx,method="SLSQP",jac=f1_gradient ,options={'maxiter': 1500, 'ftol': 1e-10,'disp': True,'iprint':3})
     x = result.x
     s = x[N]
     
@@ -343,7 +380,7 @@ def scale_tree(tree,x):
     mu = x[-1]
 
     for node in tree.postorder_node_iter():
-        if node is not tree.seed_node:
+        if node is not tree.seed_node and node.idx >= 0:
             key = node.bipartition    
             mapping[key] = node.idx
 

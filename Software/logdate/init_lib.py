@@ -7,7 +7,7 @@ import random
 EPSILON_nu = 1e-5
 
 
-def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=None):
+def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=None, min_b=0):
     if seed is None:
         seed = random.randint(0,1024)
 
@@ -29,7 +29,7 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
 
         history.append(x)
         selected = list(node_bitset.fromint(x))
-        x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
+        x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge,min_b=min_b)
         X.append(x0)
     
     return X,seed   
@@ -56,7 +56,7 @@ def get_node_list(tree, min_nleaf=3):
     return tuple(node_list)         
 
 
-def date_as_selected(tree,sampling_time,selected,rootAge=None):
+def date_as_selected(tree,sampling_time,selected,rootAge=None,min_b=0):
 # selected is a list of nodes; it MUST be sorted in postorder 
     # add the root of tree to selected
     #selected.append(tree.seed_node)
@@ -86,7 +86,7 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None):
     tree.seed_node.time = t0
     date_from_root_and_leaves(tree.seed_node)
         
-    mu = compute_mu_from_dated_tree(tree)     
+    mu = compute_mu_from_dated_tree(tree,min_b=min_b)     
     return mu
 
 def preprocess_tree(tree,sampling_time):
@@ -205,7 +205,7 @@ def date_from_root_and_leaves(root_node):
 
             
             
-def compute_mu_from_dated_tree(tree):
+def compute_mu_from_dated_tree(tree,min_b=0):
     a = 0
     b = 0
     c = 0
@@ -223,7 +223,7 @@ def compute_mu_from_dated_tree(tree):
     mu = exp(-b/2/a)
   
     for node in tree.postorder_node_iter():
-        if node is not tree.seed_node:
+        if node is not tree.seed_node and node.edge_length >= min_b:
             nu = mu*(node.time - node.parent_node.time)/node.edge_length if (node.time != node.parent_node.time) else EPSILON_nu
             x0.append(nu)
 
