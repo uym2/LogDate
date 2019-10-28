@@ -22,7 +22,7 @@ parser.add_argument("-m","--maxIter",required=False, help="The maximum number of
 
 args = vars(parser.parse_args())
 
-myTrees = TreeList.get_from_path(args["input"],'newick')
+myTrees = TreeList.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 rootAge = float(args["rootAge"]) if args["rootAge"] else None
 leafAge = float(args["leafAge"]) if args["leafAge"] else None
@@ -36,8 +36,8 @@ randseed = int(args["rseed"]) if args["rseed"] else None
 with open(args["output"],"w") as fout:
     for i,tree in enumerate(myTrees):
         print("Dating tree " + str(i+1))
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,min_b="AUTO")
-        #mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=None,seqLen=seqLen,maxIter=maxIter,min_b="AUTO")
+        #mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,min_b="AUTO")
+        mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=None,seqLen=seqLen,maxIter=maxIter,min_b=None)
         t_tree_swift = treeswift.read_tree_dendropy(t_tree)
         fout.write(t_tree_swift.newick())
         print("Clock rate: " + str(mu))

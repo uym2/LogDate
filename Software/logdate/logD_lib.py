@@ -13,6 +13,7 @@ import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
 from logdate.util_lib import *
+import treeswift
 
 MAX_ITER = 50000
 MIN_RATE = 1e-5
@@ -240,7 +241,9 @@ def run_lsd(tree,sampling_time,outputDir=None):
     wdir = outputDir if outputDir is not None else mkdtemp()
     treefile = normpath(join(wdir,"mytree.tre"))
     print(treefile)
-    tree.write_to_path(treefile,"newick")
+    tree_swift = treeswift.read_tree_dendropy(tree)
+    #tree.write_to_path(treefile,"newick")
+    tree_swift.write_tree_newick(treefile)
     call([lsd_exec,"-i",treefile,"-d",sampling_time,"-v","-c"])
     return wdir
         
