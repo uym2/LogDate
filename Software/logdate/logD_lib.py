@@ -138,10 +138,10 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = Bounds(np.array([MIN_NU]*N + [MIN_RATE]),np.array([9999999]*(N+1)),keep_feasible=True)
     args = (b)
-    print(cons_residue)
     #linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),[0]*len(cons_mtrx),[0]*len(cons_mtrx))
     linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),cons_residue,cons_residue)
     #linear_constraint = LinearConstraint(cons_mtrx,[0]*len(cons_mtrx),[0]*len(cons_mtrx))
+
 
     if f_obj is not None:
         f,g,h = f_obj(x,args)
@@ -154,12 +154,47 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     else:
         f,g,h = f_logDate()    
 
-    result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+
+    x = x0
+
+    for p in range(5):
+        print("Fixing mu to " + str(x[-1]) + "and optimize scaling factors ...")
+        fixed_mu_constraint = LinearConstraint(csr_matrix([0.0]*N+[1.0]),x[-1],x[-1])
+
+        result = minimize(fun=f,method="trust-constr",x0=x,bounds=bounds,args=args,constraints=[linear_constraint,fixed_mu_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+        
+        x = result.x
+        mu = x[N]
+           
+        fx = f(x,args)
+
+        print("Optimal of fixed-mu problem: ")
+        print("mu = " +  str(x[-1]))
+        print("log-score = " + str(fx))
+
+        print("Fixing optimal free scaling factors and optimizing mu ...")
+        fixed_nu_mtrx = []
+        fixed_nu = []
+
+        for node in tree.postorder_node_iter():
+            if node is not tree.seed_node and node.edge_length <= min_b:
+                a = [0.0]*(N+1)
+                a[node.idx] = 1
+                fixed_nu_mtrx.append(a)
+                fixed_nu.append(x[node.idx])
+
+        fixed_nu_constraint = LinearConstraint(csr_matrix(fixed_nu_mtrx),fixed_nu,fixed_nu) 
+        result = minimize(fun=f,method="trust-constr",x0=x,bounds=bounds,args=args,constraints=[linear_constraint,fixed_nu_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+
+        x = result.x
+        mu = x[N]
+           
+        fx = f(x,args)
+        
+        print("Optimal of fixed-nu problem: ")
+        print("mu = " +  str(x[-1]))
+        print("log-score = " + str(fx))
     
-    x = result.x
-    mu = x[N]
-       
-    fx = f(x,args)
     return mu,fx,x
 
 
