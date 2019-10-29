@@ -81,8 +81,8 @@ def f_logDate_log_b():
     
 def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,maxIter=MAX_ITER,min_b=0):
     n = len(list(tree.leaf_node_iter()))
-    #N = 2*n-2
-    N = len([node for node in tree.postorder_node_iter() if node is not tree.seed_node and node.edge_length > min_b])
+    N = 2*n-2
+    #N = len([node for node in tree.postorder_node_iter() if node is not tree.seed_node and node.edge_length > min_b])
     cons_mtrx = []
     cons_residue = []
     
@@ -90,20 +90,22 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     b = [1.]*N
 
     for node in tree.postorder_node_iter():
-        if node is not tree.seed_node and node.edge_length > min_b:
-            node.idx = idx
-            idx += 1
-        else:
-            node.idx = -1    
+        #if node is not tree.seed_node and node.edge_length > min_b:
+        node.idx = idx
+        idx += 1
+        #else:
+        #    node.idx = -1    
         if node.is_leaf():
             node.height = 0
             node.constraint = [0.0]*(N+1)
             node.residue = 0
-            if node.edge_length >= min_b:
-                node.constraint[node.idx] = node.edge_length
+            node.constraint[node.idx] = node.edge_length
+            if node.edge_length > min_b:
+                #node.constraint[node.idx] = node.edge_length
                 b[node.idx] = node.edge_length
             else:
-                node.residue = node.edge_length
+                #node.residue = node.edge_length
+                b[node.idx] = 0
             node.constraint[N] = -smpl_times[node.taxon.label]
         else:
             children = list(node.child_node_iter())           
@@ -120,11 +122,13 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 else:
                     node.constraint = children[1].constraint
                     node.residue = children[1].residue
+                node.constraint[node.idx] = node.edge_length
                 if node.edge_length > min_b:
-                    node.constraint[node.idx] = node.edge_length
+                    #node.constraint[node.idx] = node.edge_length
                     b[node.idx] = node.edge_length
                 else:
-                    node.residue += node.edge_length
+                    #node.residue += node.edge_length
+                    b[node.idx] = 0
             elif root_age is not None:
                 a = children[0].constraint[:-1] + [children[0].constraint[-1]+root_age]
                 r = -children[0].residue
@@ -182,7 +186,7 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
-    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed,min_b=min_b)
+    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed,min_b=0)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
@@ -214,8 +218,8 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,
     wdir = run_lsd(tree,sampling_time,outputDir=lsdDir)
     
     x0 = read_lsd_results(wdir)
-    #x1 = [1.]*len(x0)
-    x1 = [1.]*(len([node for node in tree.postorder_node_iter() if node is not tree.seed_node and node.edge_length >= min_b])+1)
+    x1 = [1.]*len(x0)
+    #x1 = [1.]*(len([node for node in tree.postorder_node_iter() if node is not tree.seed_node and node.edge_length >= min_b])+1)
     x1[-1] = x0[-1] 
     #x1=x0
     smpl_times = {}
