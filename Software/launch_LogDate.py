@@ -36,8 +36,8 @@ randseed = int(args["rseed"]) if args["rseed"] else None
 with open(args["output"],"w") as fout:
     for i,tree in enumerate(myTrees):
         print("Dating tree " + str(i+1))
-        #mu,f,x,s_tree,t_tree= logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed)
-        mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=None,seqLen=seqLen,maxIter=maxIter)
+        mu,f,x,s_tree,t_tree= logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed)
+        #mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=None,seqLen=seqLen,maxIter=maxIter)
         t_tree_swift = treeswift.read_tree_dendropy(t_tree)
         fout.write(t_tree_swift.newick())
         print("Clock rate: " + str(mu))

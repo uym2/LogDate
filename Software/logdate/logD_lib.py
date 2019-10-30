@@ -15,7 +15,8 @@ from scipy.sparse import csr_matrix
 import treeswift
 
 MAX_ITER = 50000
-MIN_RATE = 1e-5
+MIN_NU = 1e-12
+MIN_MU = 1e-5
 
 
 lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
@@ -110,7 +111,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 cons_eq.append(a)    
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
+    bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)))
     args = (b)
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq))
     #linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
@@ -125,6 +126,11 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
         f,g,h = f_logDate_lsd(c=c,s=seqLen)    
     else:
         f,g,h = f_logDate()    
+
+    print("Initial state:" )
+    print("mu = " + str(x0[-1]))
+    print("fx = " + str(f(x0,args)))
+    print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x0))))
 
     result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
     

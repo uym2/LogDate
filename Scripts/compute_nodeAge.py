@@ -13,7 +13,7 @@ parser.add_argument("-o","--output",required=False,help="Output file")
 
 args = vars(parser.parse_args())
 
-tree = Tree.get_from_path(args["input"],'newick')
+tree = Tree.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 n = 0
 smplt = {}
