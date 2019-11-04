@@ -19,7 +19,6 @@ MAX_ITER = 50000
 MIN_RATE = 1e-5
 MIN_NU = 1e-10
 
-
 lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
 
 lsd_exec=normpath(join(dirname(realpath(__file__)),lsd_file))
@@ -52,16 +51,16 @@ def f_logDate():
 
     return f,g,h
 
-def f_logDate_sqrt_b():
+def f_logDate_sqrt_b(pseudoCount=1e-8):
     def f(x,*args):
-        return sum([sqrt(b)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+        return sum([sqrt(b)*log(abs(y))**2 if b>0 else pseudoCount*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,*args):
-        return np.array([2*sqrt(b)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+        return np.array([2*sqrt(b)*log(abs(z))/z if b>0 else 2*pseudoCount*log(abs(z))/z  for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
         #return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
-        return diags([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([sqrt(b)*(2-2*log(abs(y)))/y**2 if b>0 else pseudoCount*(2-2*log(abs(y)))/y**2  for (y,b) in zip(x[:-1],args[0])]+[0])	
 
     return f,g,h
 
@@ -136,17 +135,17 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 cons_residue.append(r)
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    bounds = Bounds(np.array([MIN_NU]*N + [MIN_RATE]),np.array([9999999]*(N+1)),keep_feasible=True)
+    bounds = Bounds(np.array([MIN_NU]*N + [MIN_RATE]),np.array([np.inf]*(N+1)),keep_feasible=True)
     args = (b)
-    #linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),[0]*len(cons_mtrx),[0]*len(cons_mtrx))
-    linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),cons_residue,cons_residue)
+    linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),[0]*len(cons_mtrx),[0]*len(cons_mtrx))
+    #linear_constraint = LinearConstraint(csr_matrix(cons_mtrx),cons_residue,cons_residue)
     #linear_constraint = LinearConstraint(cons_mtrx,[0]*len(cons_mtrx),[0]*len(cons_mtrx))
 
 
     if f_obj is not None:
         f,g,h = f_obj(x,args)
     elif brScale == 'sqrt':
-        f,g,h = f_logDate_sqrt_b()
+        f,g,h = f_logDate_sqrt_b(pseudoCount=min_b)
     elif brScale == 'log':
         f,g,h = f_logDate_log_b()
     elif brScale == 'lsd':
@@ -154,47 +153,11 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     else:
         f,g,h = f_logDate()    
 
-
-    x = x0
-
-    for p in range(5):
-        print("Fixing mu to " + str(x[-1]) + "and optimize scaling factors ...")
-        fixed_mu_constraint = LinearConstraint(csr_matrix([0.0]*N+[1.0]),x[-1],x[-1])
-
-        result = minimize(fun=f,method="trust-constr",x0=x,bounds=bounds,args=args,constraints=[linear_constraint,fixed_mu_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+    result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+    x = result.x
+    mu = x[N]
+    fx = f(x,args)
         
-        x = result.x
-        mu = x[N]
-           
-        fx = f(x,args)
-
-        print("Optimal of fixed-mu problem: ")
-        print("mu = " +  str(x[-1]))
-        print("log-score = " + str(fx))
-
-        print("Fixing optimal free scaling factors and optimizing mu ...")
-        fixed_nu_mtrx = []
-        fixed_nu = []
-
-        for node in tree.postorder_node_iter():
-            if node is not tree.seed_node and node.edge_length <= min_b:
-                a = [0.0]*(N+1)
-                a[node.idx] = 1
-                fixed_nu_mtrx.append(a)
-                fixed_nu.append(x[node.idx])
-
-        fixed_nu_constraint = LinearConstraint(csr_matrix(fixed_nu_mtrx),fixed_nu,fixed_nu) 
-        result = minimize(fun=f,method="trust-constr",x0=x,bounds=bounds,args=args,constraints=[linear_constraint,fixed_nu_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
-
-        x = result.x
-        mu = x[N]
-           
-        fx = f(x,args)
-        
-        print("Optimal of fixed-nu problem: ")
-        print("mu = " +  str(x[-1]))
-        print("log-score = " + str(fx))
-    
     return mu,fx,x
 
 
@@ -204,7 +167,7 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
     elif min_b == "AUTO":
         min_b = minVar_bisect([node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node])     
     
-    print("Threshold: " + str(min_b))
+    print("Pseudo: " + str(min_b))
 
     smpl_times = {}
     

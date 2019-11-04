@@ -36,7 +36,7 @@ def minVar_bisect(L):
         var = var_left+var_right
         if var < minVar:
             minVar = var
-            cutoff = (L[int(k-1)] + L[int(k)])/2
+            cutoff = L[int(k-1)]  #(L[int(k-1)] + L[int(k)])/2
         k -= 1    
 
     return cutoff

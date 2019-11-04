@@ -14,7 +14,7 @@ parser.add_argument("-r","--rootAge",required=False,help="Root age. Can be used 
 parser.add_argument("-f","--leafAge",required=False,help="Leaf age. To be used with root age to infer relative time. Will be overried by -t if it is specified. Default: None if -t is specified else 1.")
 parser.add_argument("-o","--output",required=True,help="The output trees with branch lengths in time unit")
 parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
-parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log', 'lsd'. Default: No weighting")
+parser.add_argument("-b","--brScale",required=False,help="Per-branch weighting strategy. Options include: 'sqrt', 'log', 'lsd','none'. Default: sqrt")
 parser.add_argument("-p","--rep",required=False, help="The number of random replicates for initialization. Default: use 1 initial point")
 parser.add_argument("-s","--rseed",required=False, help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False, help="The length of the sequences. Default: 1000")
@@ -29,14 +29,14 @@ leafAge = float(args["leafAge"]) if args["leafAge"] else None
 lsdDir = args["tempdir"] if args["tempdir"] else None
 nrep = int(args["rep"]) if args["rep"] else 1
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
-brScale = args["brScale"]
+brScale = args["brScale"] if args["brScale"] else 'sqrt'
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
 
 with open(args["output"],"w") as fout:
     for i,tree in enumerate(myTrees):
         print("Dating tree " + str(i+1))
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,min_b="AUTO")
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,min_b="AUTO")
         #mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=None,seqLen=seqLen,maxIter=maxIter,min_b="AUTO")
         t_tree_swift = treeswift.read_tree_dendropy(t_tree)
         fout.write(t_tree_swift.newick())
