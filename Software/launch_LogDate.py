@@ -41,6 +41,7 @@ with open(args["output"],"w") as fout:
         t_tree_swift = treeswift.read_tree_dendropy(t_tree)
         fout.write(t_tree_swift.newick())
         print("Clock rate: " + str(mu))
+        #print([ mu/y for y in x[:-1] ])
         print("Log score: " + str(f))
 
 #if args["scaledTree"]:
