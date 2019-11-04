@@ -160,8 +160,38 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
         
     return mu,fx,x
 
+def logDate_with_timeTree_init(tree,timeTree_file,init_mu,sampling_time=None,root_age=None,leaf_age=None,brScale='sqrt',nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,min_b="AUTO"):
+    if min_b is None:
+        min_b = 0
+    elif min_b == "AUTO":
+        min_b = minVar_bisect([node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node])     
+    
+    print("Pseudo: " + str(min_b))
 
-def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,min_b="AUTO"):
+    smpl_times = {}
+    
+    if sampling_time is None:
+        if leaf_age is None:
+            leaf_age = 1
+        for node in tree.leaf_node_iter():
+            smpl_times[node.taxon.label] = leaf_age
+        if root_age is None:
+            root_age = 0    
+    else:        
+        with open(sampling_time,"r") as fin:
+            fin.readline()
+            for line in fin:
+                name,time = line.split()
+                smpl_times[name] = float(time)
+    x0 = init_from_tree(tree,timeTree_file,mu=init_mu)
+    mu,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter,min_b=min_b)
+    s_tree,t_tree = scale_tree(tree,x)
+    
+    return mu,f,x,s_tree,t_tree   
+
+
+
+def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale='sqrt',nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,min_b="AUTO"):
     if min_b is None:
         min_b = 0
     elif min_b == "AUTO":
@@ -295,6 +325,35 @@ def read_lsd_results(inputDir):
                 x0[idx] = node.edge_length/float(el)
 
     return x0        
+
+def init_from_tree(b_tree,t_tree_file,mu=1):
+    b_tree.is_rooted = True
+    taxa = b_tree.taxon_namespace
+    t_tree = Tree.get_from_path(t_tree_file,schema="newick",taxon_namespace=taxa,rooting="force-rooted") 
+
+    b_tree.encode_bipartitions()
+    t_tree.encode_bipartitions()
+    
+    n = len(list(b_tree.leaf_node_iter()))
+    N = 2*n-2
+    x0 = [MIN_NU]*N + [mu]
+    
+    idx = 0
+    brlen_map = {}
+    
+    for node in b_tree.postorder_node_iter():
+        if not node is b_tree.seed_node:
+            key = node.bipartition
+            brlen_map[key] = (idx,node.edge_length)
+            idx += 1
+
+    for node in t_tree.postorder_node_iter():
+        if not node is t_tree.seed_node:
+            key = node.bipartition
+            idx,el = brlen_map[key]
+            if el > 0 and node.edge_length>0:
+                x0[idx] = node.edge_length*mu/float(el)
+    return x0
         
 
 def calibrate_log_opt(tree,smpl_times,root_age=None,brScale=False,x0=None):

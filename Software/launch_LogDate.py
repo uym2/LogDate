@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 
-from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init
+from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init, logDate_with_timeTree_init
 from logdate.logD_CI_lib import logCI_with_lsd
-from dendropy import TreeList
+from dendropy import TreeList, Tree
 import treeswift
 import argparse
 
@@ -19,10 +19,12 @@ parser.add_argument("-p","--rep",required=False, help="The number of random repl
 parser.add_argument("-s","--rseed",required=False, help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False, help="The length of the sequences. Default: 1000")
 parser.add_argument("-m","--maxIter",required=False, help="The maximum number of iterations for optimization. Default: 50000")
+parser.add_argument("-T","--initTimeTree",required=False, help="A tree in time unit that can be used as an initial point. Default:None")
+parser.add_argument("-u","--initMu",required=False, help="Initial mutation rate. To be used with -T. Default:1.0")
 
 args = vars(parser.parse_args())
 
-myTrees = TreeList.get_from_path(args["input"],'newick',preserve_underscores=True)
+tree = Tree.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 rootAge = float(args["rootAge"]) if args["rootAge"] else None
 leafAge = float(args["leafAge"]) if args["leafAge"] else None
@@ -32,17 +34,16 @@ seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 brScale = args["brScale"] if args["brScale"] else 'sqrt'
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
+timeTree_file = args["initTimeTree"]
+initMu = float(args["initMu"])
 
-with open(args["output"],"w") as fout:
-    for i,tree in enumerate(myTrees):
-        print("Dating tree " + str(i+1))
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,min_b="AUTO")
-        #mu,f,x,s_tree,t_tree = logDate_with_lsd(tree,sampling_time,root_age=rootAge,brScale=brScale,lsdDir=None,seqLen=seqLen,maxIter=maxIter,min_b="AUTO")
-        t_tree_swift = treeswift.read_tree_dendropy(t_tree)
-        fout.write(t_tree_swift.newick())
-        print("Clock rate: " + str(mu))
-        print("Log score: " + str(f))
 
-#if args["scaledTree"]:
-#s_tree.write_to_path(args["scaledTree"],"newick")
+if timeTree_file is not None:
+    logDate_with_timeTree_init(tree,timeTree_file,initMu,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,nrep=nrep,min_nleaf=3,seqLen=seqLen,maxIter=maxIter,seed=randseed,min_b="AUTO")
+else:    
+    mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,min_b="AUTO")
 
+t_tree_swift = treeswift.read_tree_dendropy(t_tree)
+fout.write(t_tree_swift.newick())
+print("Clock rate: " + str(mu))
+print("Log score: " + str(f))
