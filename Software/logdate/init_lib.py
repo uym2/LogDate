@@ -2,12 +2,17 @@ from bitsets import bitset
 from dendropy import Tree,Node
 from sys import argv
 from math import log, sqrt, exp
-from random import getrandbits
+import random
 
 EPSILON_nu = 1e-5
 
 
-def random_date_init(tree, sampling_time, rep, min_nleaf=3):
+def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=None):
+    if seed is None:
+        seed = random.randint(0,1024)
+
+    random.seed(a=seed)    
+
     history = []
     X = []
 
@@ -17,15 +22,18 @@ def random_date_init(tree, sampling_time, rep, min_nleaf=3):
         k = len(node_list)  
         node_bitset = bitset('node_bitset',node_list)
 
-        x = int(getrandbits(k))
+        x = int(random.getrandbits(k))
 
-        if x > 0 and x not in history:
-            history.append(x)
-            selected = list(node_bitset.fromint(x))
-            x0 = date_as_selected(tree_rep,sampling_time,selected)
-            X.append(x0)
+        while x <= 0 or x in history:
+            x = int(random.getrandbits(k))
+
+        history.append(x)
+        selected = list(node_bitset.fromint(x))
+        x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
+        X.append(x0)
     
-    return X        
+    return X,seed   
+         
 def print_date(tree,fout=None):
     for node in tree.postorder_node_iter():
        if node is not tree.seed_node:
@@ -48,7 +56,7 @@ def get_node_list(tree, min_nleaf=3):
     return tuple(node_list)         
 
 
-def date_as_selected(tree,sampling_time,selected):
+def date_as_selected(tree,sampling_time,selected,rootAge=None):
 # selected is a list of nodes; it MUST be sorted in postorder 
     # add the root of tree to selected
     #selected.append(tree.seed_node)
@@ -56,8 +64,7 @@ def date_as_selected(tree,sampling_time,selected):
     # refresh initial values
     preprocess_tree(tree,sampling_time)
 
-    t0 = compute_date_as_root(tree.seed_node)
-    
+    t0 = rootAge if rootAge is not None else compute_date_as_root(tree.seed_node)
 
     # dating
     for node in selected:
@@ -111,7 +118,7 @@ def preprocess_node(a_node):
                     min_child = c
            node.nearest_leaf = min_child.nearest_leaf
            node.nearest_t = min_child.nearest_t
-           node.delta_b = min_child.delta_b + node.edge_length
+           node.delta_b = min_child.delta_b + ( node.edge_length if node.edge_length else 0)
         else:
            stack.append((node,True))
            stack += [(x,False) for x in node.child_node_iter()]

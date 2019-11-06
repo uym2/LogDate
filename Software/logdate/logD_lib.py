@@ -10,9 +10,13 @@ from os import remove
 from copy import deepcopy
 from logdate.init_lib import random_date_init
 import platform
+from scipy.sparse import diags
+from scipy.sparse import csr_matrix
+import treeswift
 
 MAX_ITER = 50000
-MIN_RATE = 1e-10
+MIN_NU = 1e-12
+MIN_MU = 1e-5
 
 
 lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
@@ -28,7 +32,9 @@ def f_logDate_lsd(c=10,s=1000):
         return np.array([2*(b+c/s)/s*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return np.diag([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        #return np.diag([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        
 
     return f,g,h
 
@@ -40,7 +46,8 @@ def f_logDate():
         return np.array([2*log(abs(z))/z for z in x[:-1]] + [0])
 
     def h(x,*args):
-        return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+        #return np.diag([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
+        return diags([(2-2*log(abs(y)))/y**2 for y in x[:-1]]+[0])	
 
     return f,g,h
 
@@ -52,7 +59,8 @@ def f_logDate_sqrt_b():
         return np.array([2*sqrt(b)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        #return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
 
     return f,g,h
 
@@ -65,7 +73,8 @@ def f_logDate_log_b():
         return np.array([2*log(1+sqrt(b))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
+        #return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
+        return diags([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
 
     return f,g,h    
     
@@ -82,17 +91,19 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
         node.idx = idx
         idx += 1
         if node.is_leaf():
+            node.height = 0
             node.constraint = [0.0]*(N+1)
             node.constraint[node.idx] = node.edge_length
             node.constraint[N] = -smpl_times[node.taxon.label]
             b[node.idx] = node.edge_length
         else:
             children = list(node.child_node_iter())           
+            node.height = min(children[0].height,children[1].height)
             a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
             cons_eq.append(a)
 
             if node is not tree.seed_node: 
-                node.constraint = children[0].constraint
+                node.constraint = children[0].constraint if children[0].height < children[1].height else children[1].constraint
                 node.constraint[node.idx] = node.edge_length
                 b[node.idx] = node.edge_length
             elif root_age is not None:
@@ -100,9 +111,10 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 cons_eq.append(a)    
 
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
-    bounds = Bounds(np.array([MIN_RATE]*(N+1)),np.array([9999999]*(N+1)))
+    bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)))
     args = (b)
-    linear_constraint = LinearConstraint(cons_eq,[0]*(n-1),[0]*(n-1))
+    linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq))
+    #linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
 
     if f_obj is not None:
         f,g,h = f_obj(x,args)
@@ -115,6 +127,11 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     else:
         f,g,h = f_logDate()    
 
+    print("Initial state:" )
+    print("mu = " + str(x0[-1]))
+    print("fx = " + str(f(x0,args)))
+    print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x0))))
+
     result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
     
     x = result.x
@@ -124,16 +141,24 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     return mu,fx,x
 
 
-def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER):
+def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None):
     smpl_times = {}
-
-    with open(sampling_time,"r") as fin:
-        fin.readline()
-        for line in fin:
-            name,time = line.split()
-            smpl_times[name] = float(time)
     
-    X = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf)
+    if sampling_time is None:
+        if leaf_age is None:
+            leaf_age = 1
+        for node in tree.leaf_node_iter():
+            smpl_times[node.taxon.label] = leaf_age
+        if root_age is None:
+            root_age = 0    
+    else:        
+        with open(sampling_time,"r") as fin:
+            fin.readline()
+            for line in fin:
+                name,time = line.split()
+                smpl_times[name] = float(time)
+    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
 
@@ -152,7 +177,7 @@ def logDate_with_random_init(tree,sampling_time,root_age=None,brScale=False,nrep
             print(t_tree.as_string("newick"))
              
     
-    return x_best[-1],f_min,x_best,s_tree,t_tree   
+    return x_best[-1],f_min,x_best,s_tree,t_tree 
     
 
 def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,seqLen=1000,maxIter=MAX_ITER):
@@ -185,7 +210,9 @@ def run_lsd(tree,sampling_time,outputDir=None):
     wdir = outputDir if outputDir is not None else mkdtemp()
     treefile = normpath(join(wdir,"mytree.tre"))
     print(treefile)
-    tree.write_to_path(treefile,"newick")
+    tree_swift = treeswift.read_tree_dendropy(tree)
+    #tree.write_to_path(treefile,"newick")
+    tree_swift.write_tree_newick(treefile)
     call([lsd_exec,"-i",treefile,"-d",sampling_time,"-v","-c"])
     return wdir
         
