@@ -14,7 +14,7 @@ parser.add_argument("-r","--rootAge",required=False,help="Root age. Can be used 
 parser.add_argument("-f","--leafAge",required=False,help="Leaf age. To be used with root age to infer relative time. Will be overried by -t if it is specified. Default: None if -t is specified else 1.")
 parser.add_argument("-o","--output",required=True,help="The output trees with branch lengths in time unit.")
 parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
-parser.add_argument("-u","--unweight",action='store_false',help="Do NO do per-branch weighting.")
+parser.add_argument("-u","--unweight",action='store_true',help="Do NO do per-branch weighting.")
 parser.add_argument("-p","--rep",required=False,help="The number of random replicates for initialization. Default: use 1 initial point")
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
