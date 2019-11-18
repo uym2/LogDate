@@ -76,8 +76,10 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
     
     L = [node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node]
     cutoff = minVar_bisect(L)       
-    calibs = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
+    calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
     constrs,weights = setup_constraints(tree,calibs)
+
+    print("Finished setting up constraints according to sampling time. Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
 
     for i,x1 in enumerate(X):
         x0 = [0]*(len(weights)+2)
@@ -129,6 +131,7 @@ def compute_time_tree(tree,x_best,sampling_time):
                 
 
 def mark_short_terminals(tree,threshold):
+    count_short = 0
     for node in tree.postorder_node_iter():
         if node is tree.seed_node:
             continue
@@ -138,9 +141,11 @@ def mark_short_terminals(tree,threshold):
         else:
             node.is_short = node.edge_length <= threshold and ( sum(not c.is_short for c in node.child_node_iter()) == 0 )   
             node.has_short_child = (sum(c.is_short for c in node.child_node_iter()) > 0)
-
+        count_short += int(node.is_short)
+    return count_short        
+        
 def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0):
-    mark_short_terminals(tree,short_terms_thres)
+    count_short = mark_short_terminals(tree,short_terms_thres)
 
     calibs = []
 
@@ -157,7 +162,7 @@ def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0):
                 node.tmax = min(c.tmax for c in node.child_node_iter() if c.is_short)
                 if not node.is_short:
                     calibs.append((node,node.tmin,node.tmax))                        
-    return calibs    
+    return calibs,count_short    
 
 def setup_constraints(tree,calibs):
     idx = 2
