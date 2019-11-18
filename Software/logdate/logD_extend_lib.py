@@ -79,7 +79,7 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
     calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
     constrs,weights = setup_constraints(tree,calibs)
 
-    print("Finished setting up constraints according to sampling time. Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
+    print("Finished setting up constraints according to sampling time. Cutoff threshold for short branches set to " + str(cutoff) + ". Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
 
     for i,x1 in enumerate(X):
         x0 = [0]*(len(weights)+2)
