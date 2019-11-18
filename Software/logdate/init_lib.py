@@ -15,6 +15,7 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
 
     history = []
     X = []
+    T0 = []
 
     for i in range(rep):
         tree_rep = Tree(tree)
@@ -29,10 +30,11 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
 
         history.append(x)
         selected = list(node_bitset.fromint(x))
-        x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
+        x0,t0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
         X.append(x0)
+        T0.append(t0)
     
-    return X,seed   
+    return X,seed,T0   
          
 def print_date(tree,fout=None):
     for node in tree.postorder_node_iter():
@@ -87,7 +89,7 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None):
     date_from_root_and_leaves(tree.seed_node)
         
     mu = compute_mu_from_dated_tree(tree)     
-    return mu
+    return mu,t0
 
 def preprocess_tree(tree,sampling_time):
    for node in tree.postorder_node_iter():

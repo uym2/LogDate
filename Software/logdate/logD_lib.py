@@ -157,7 +157,7 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
-    X,seed = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
