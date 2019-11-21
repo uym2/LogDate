@@ -1,0 +1,28 @@
+
+LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v0.2 
+
+
+Input files:
+  I                                 Input tree file : genetree1_label.tre
+  D                         Estimate relative dates : mrca date = 0.000, tip date =1.000
+Output file:
+  O                                    Output file  : genetree1_label.tre.result
+Parameters:
+  C                                With constraints : Yes
+  T                        Lower bound for the rate : 0.000010
+  V                                  With variances : Yes
+  B                          Parameter of variances : 10
+  S                                 Sequence Length : 1000000000
+  R                               Estimate the root : No
+  W                         Given substitution rate : No
+  G                                Remove outgroups : No
+  N                               Multiple data set : No
+
+  H to print Help 
+  Y to accept or type a letter to change an option (Q = Exit) 
+Tree 1 The results correspond to the estimation of relative dates when T[mrca]=0.000 and T[tips]=1.000
+rate 0.209693, tMRCA 0.000, log_likelihood -153459141.146229
+
+
+*********************************************************
+Elapsed time: 0.00 seconds
