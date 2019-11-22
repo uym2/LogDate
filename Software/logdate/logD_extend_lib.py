@@ -75,7 +75,9 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
         idx += 1 
     
     L = [node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node]
-    cutoff = minVar_bisect(L)       
+
+    cutoff = minVar_bisect(L)
+    cutoff=0       
     calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
     constrs,weights = setup_constraints(tree,calibs)
 
@@ -237,6 +239,9 @@ def setup_constraints(tree,calibs):
         row += (1 + int(double_constr_flag))
 
     A = csr_matrix((data,(rows,cols)),shape=(max(rows)+1,max(cols)+1))
+    print(A)
+    print(uppers)
+    print(lowers)
     return LinearConstraint(A,lowers,uppers),weights
 
 def main():
@@ -252,3 +257,7 @@ def main():
             sampling_time[taxon] = float(time)
 
     x_best = log_from_random_init(tree,sampling_time)
+
+
+if __name__ == "__main__":
+    main()    

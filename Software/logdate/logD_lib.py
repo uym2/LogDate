@@ -23,6 +23,30 @@ lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd
 
 lsd_exec=normpath(join(dirname(realpath(__file__)),lsd_file))
 
+def f_lsd():
+    def f(x,*args):
+        return sum([b*(y-1)*(y-1) for (y,b) in zip(x[:-1],args[0])])
+
+    def g(x,*args):
+        return np.array([2*b*(y-1) for (y,b) in zip(x[:-1],args[0])] + [0])
+
+    def h(x,*args):
+        return diags([2*b for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
+def f_LF():
+    def f(x,*args):
+        return sum([b*(y-log(abs(y))) for (y,b) in zip(x[:-1],args[0])])
+
+    def g(x,*args):
+        return np.array([b*(1-1/abs(y)) for (y,b) in zip(x[:-1],args[0])] + [0])
+
+    def h(x,*args):
+        return diags([b/(y*y) for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
 def f_logDate_lsd(c=10,s=1000):
 # follow the LSD paper for weighting strategy
     def f(x,*args):
@@ -117,7 +141,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     #linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
 
     if f_obj is not None:
-        f,g,h = f_obj(x,args)
+        f,g,h = f_obj()
     elif brScale == 'sqrt':
         f,g,h = f_logDate_sqrt_b()
     elif brScale == 'log':
@@ -141,7 +165,7 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     return mu,fx,x
 
 
-def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None):
+def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,f_obj=None):
     smpl_times = {}
     
     if sampling_time is None:
@@ -163,7 +187,7 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
     x_best = None
 
     for i,x0 in enumerate(X):
-        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter)
+        _,f,x = logIt(tree,smpl_times,root_age=root_age,brScale=brScale,x0=x0,seqLen=seqLen,maxIter=maxIter,f_obj=f_obj)
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
