@@ -39,12 +39,13 @@ randseed = int(args["rseed"]) if args["rseed"] else None
 
 brScale = None
 f_obj = None
+objective = "wLogDate" if args["obj"] is None else args["obj"]
 
-if args["obj"] == "LF":
+if objective == "LF":
     f_obj = f_LF
-elif args["obj"] == "LSD":
+elif objective == "LSD":
     f_obj = f_lsd
-elif args["obj"] != "LogDate":
+elif objective == "wLogDate":
     brScale = "sqrt"            
 
 if args["pseudo"]:
@@ -60,7 +61,8 @@ if args["pseudo"]:
     print("Log score: " + str(f))
     print("Clock rate: " + str(x[1]))
     print("Root age: " + str(x[0]/x[1]))
-else:    
+else:
+    print("Objective function: " + objective)    
     mu,f,x,s_tree,t_tree= logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,f_obj=f_obj)
     t_tree_swift = treeswift.read_tree_dendropy(t_tree)
     t_tree_swift.write_tree_newick(args["output"])
