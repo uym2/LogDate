@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import logdate
 from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init, f_LF, f_lsd
 from logdate.logD_CI_lib import logCI_with_lsd
 from logdate.logD_extend_lib import write_time_tree,log_from_random_init
@@ -7,10 +8,12 @@ from dendropy import Tree
 import treeswift
 import argparse
 
+print("Launching " + logdate.PROGRAM_NAME + " version " + logdate.PROGRAM_VERSION)
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-i","--input",required=True,help="Input tree")
-parser.add_argument("-j","--obj",required=True,help="Objective function. Either LogDate, wLogDate, LF, or LSD. Default: wLogDate")
+parser.add_argument("-j","--obj",required=False,help="Objective function. Either LogDate, wLogDate, LF, or LSD. Default: wLogDate")
 parser.add_argument("-t","--samplingTime",required=False,help="Sampling time at leaf nodes. Default: None")
 parser.add_argument("-r","--rootAge",required=False,help="Root age. Can be used with either -f or -t, but not both. Default: None if -t is specified else 0")
 parser.add_argument("-f","--leafAge",required=False,help="Leaf age. To be used with root age to infer relative time. Will be overried by -t if -t is specified. Default: None if -t is specified else 1.")
@@ -35,6 +38,7 @@ maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
 
 brScale = None
+f_obj = None
 
 if args["obj"] == "LF":
     f_obj = f_LF
