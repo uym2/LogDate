@@ -10,6 +10,7 @@ from sys import stdout
 MAX_ITER = 50000
 MIN_NU = 1e-12
 MIN_MU = 1e-5
+EPSILON_t = 1e-5
 
 def write_time_tree(tree,outfile=None,append=False):
     if outfile:
@@ -63,7 +64,7 @@ def logging(f_obj,constraints,weights,x0,maxIter=MAX_ITER):
     result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=(weights,),constraints=[constraints,],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
     return result
 
-def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None):
+def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,max_cutoff=1e-3,seqLen=1000):
     X,seed,T0 = random_date_init(tree,sampling_time,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
@@ -76,20 +77,31 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
     
     L = [node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node]
 
-    cutoff = minVar_bisect(L)
-    cutoff=0       
-    calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
-    constrs,weights = setup_constraints(tree,calibs)
+    cutoff = min(max_cutoff,minVar_bisect(L))
+    #calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
+    #constrs,weights = setup_constraints(tree,calibs)
 
-    print("Finished setting up constraints according to sampling time. Cutoff threshold for short branches set to " + str(cutoff) + ". Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
+    tauMin = EPSILON_t
 
     for i,x1 in enumerate(X):
+        print("Start searching from initial point " + str(i+1)) 
+        mu = x1[-1]
+        tauMax = max(tauMin,1/seqLen/mu)
+        calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff,tauMin=tauMin,tauMax=tauMax)
+        constrs,weights = setup_constraints(tree,calibs)
+        print("Finished setting up constraints according to sampling time. Cutoff threshold for short branches set to " + str(cutoff) + ". Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
+        
+        # matching constr_idx and init_idx
         x0 = [0]*(len(weights)+2)
         for node in tree.postorder_node_iter():
             if node.constr_idx is not None:
                 x0[node.constr_idx] = x1[node.init_idx]
         x0[0] = T0[i]*x1[-1]       # mu*t0
-        x0[1] = x1[-1]             # mu
+        mu = x0[1] = x1[-1]             # mu
+        
+        print("Initial state:")
+        print("mu = " + str(x1[-1]))
+        print("t0 = " + str(T0[i]))
                 
         result = logging(f_wlogDate,constrs,weights,x0,maxIter=maxIter)
         x = result.x
@@ -146,7 +158,7 @@ def mark_short_terminals(tree,threshold):
         count_short += int(node.is_short)
     return count_short        
         
-def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0):
+def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0,tauMin=EPSILON_t,tauMax=100*EPSILON_t):
     count_short = mark_short_terminals(tree,short_terms_thres)
 
     calibs = []
@@ -160,8 +172,8 @@ def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0):
                calibs.append((node,node.tmin,node.tmax)) 
         else:
             if node.has_short_child:
-                node.tmin = None
-                node.tmax = min(c.tmax for c in node.child_node_iter() if c.is_short)
+                node.tmax = min(c.tmax for c in node.child_node_iter() if c.is_short) - tauMin
+                node.tmin = node.tmax - tauMax
                 if not node.is_short:
                     calibs.append((node,node.tmin,node.tmax))                        
     return calibs,count_short    
@@ -219,7 +231,7 @@ def setup_constraints(tree,calibs):
             data.append(-tmax)
 
             lowers.append(-np.inf)
-            upper.append(upper)
+            uppers.append(upper)
         
         while node is not tree.seed_node:
             if node.constr_idx is None:
