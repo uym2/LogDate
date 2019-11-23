@@ -86,7 +86,7 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
     for i,x1 in enumerate(X):
         print("Start searching from initial point " + str(i+1)) 
         mu = x1[-1]
-        tauMax = max(tauMin,1/seqLen/mu)
+        tauMax = max(tauMin,0.1/seqLen/mu)
         calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff,tauMin=tauMin,tauMax=tauMax)
         constrs,weights = setup_constraints(tree,calibs)
         print("Finished setting up constraints according to sampling time. Cutoff threshold for short branches set to " + str(cutoff) + ". Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
