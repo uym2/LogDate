@@ -251,9 +251,6 @@ def setup_constraints(tree,calibs):
         row += (1 + int(double_constr_flag))
 
     A = csr_matrix((data,(rows,cols)),shape=(max(rows)+1,max(cols)+1))
-    print(A)
-    print(uppers)
-    print(lowers)
     return LinearConstraint(A,lowers,uppers),weights
 
 def main():
