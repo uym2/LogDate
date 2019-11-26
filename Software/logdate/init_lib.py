@@ -12,9 +12,8 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
         seed = random.randint(0,1024)
 
     random.seed(a=seed)    
-
     initial_fix_age(tree)
-
+    
     history = []
     X = []
     T0 = []
@@ -124,7 +123,9 @@ def initial_fix_age(tree):
    for node in tree.postorder_node_iter():
        node.time = node.fixed_age
        if node.time is not None:
-           date_from_root_and_leaves(node)      
+           preprocess_node(node)
+           date_from_root_and_leaves(node)     
+           node.as_leaf = True 
     
    for node in tree.postorder_node_iter():
        node.fixed_age = node.time
