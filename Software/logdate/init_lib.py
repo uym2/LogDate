@@ -97,9 +97,8 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None,epsilon_t=EPSILON_
             date_from_root_and_leaves(node)
             node.as_leaf = True
     
-    if t0 is None:
-        t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
-        t0 = t_min - epsilon_t
+    t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
+    t0 = t_min - epsilon_t
     
     preprocess_node(tree.seed_node)
 
