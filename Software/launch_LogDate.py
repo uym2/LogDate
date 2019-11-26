@@ -55,7 +55,7 @@ if args["pseudo"]:
         for line in fin:
             taxon,time = line.split()
             smpl_time[taxon] = float(time)
-    x,f = log_from_random_init(tree,smpl_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed)
+    x,f = log_from_random_init(tree,smpl_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed)
     write_time_tree(tree,outfile=args["output"])
     print("Best log-scored solution: ")
     print("Log score: " + str(f))

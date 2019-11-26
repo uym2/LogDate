@@ -3,7 +3,7 @@ import numpy as np
 from scipy.sparse import csr_matrix,diags
 from scipy.optimize import LinearConstraint, minimize,Bounds
 from logdate.util_lib import minVar_bisect
-from logdate.init_lib import random_date_init, preprocess_tree, date_from_root_and_leaves, preprocess_node
+from logdate.init_lib import random_date_init, preprocess_tree, date_from_root_and_leaves, preprocess_node, date_by_RTT
 from math import sqrt,log
 from sys import stdout
 
@@ -65,31 +65,35 @@ def logging(f_obj,constraints,weights,x0,maxIter=MAX_ITER):
     return result
 
 def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,max_cutoff=1e-3,seqLen=1000):
+    # mark short terminal branches
+    x,_ = date_by_RTT(tree,sampling_time,rootAge=root_age)
+    mu_RTT = x[-1]  
+    tauMin = EPSILON_t
+    tauMax = max(tauMin,0.1/seqLen/mu_RTT)
+    print("Short-branch range estimation: ")     
+    print("mu_RTT = " + str(mu_RTT))
+    print("tauMin =  " + str(tauMin) + " tauMax = " + str(tauMax))
+    L = [node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node]
+    cutoff = min(max_cutoff,minVar_bisect(L))
+    calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff,tauMin=tauMin,tauMax=tauMax)
+    constrs,weights = setup_constraints(tree,calibs)
+    print("Finished setting up constraints according to sampling time. Cutoff threshold for short branches set to " + str(cutoff) + ". Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
+
+    # multiple random initial points
     X,seed,T0 = random_date_init(tree,sampling_time,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
-    print("Finished initialization with random seed " + str(seed))
+    print("Finished initialization of " + str(nrep) + "replicates with random seed " + str(seed))
+    
     f_min = None
     x_best = None
 
+    # hacking (dirty) code to match the 'init_idx' and 'constr_idx'
     idx = 0
     for node in tree.postorder_node_iter():
         node.init_idx = idx
         idx += 1 
     
-    L = [node.edge_length for node in tree.postorder_node_iter() if node is not tree.seed_node]
-
-    cutoff = min(max_cutoff,minVar_bisect(L))
-    #calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff)
-    #constrs,weights = setup_constraints(tree,calibs)
-
-    tauMin = EPSILON_t
-
     for i,x1 in enumerate(X):
         print("Start searching from initial point " + str(i+1)) 
-        mu = x1[-1]
-        tauMax = max(tauMin,0.1/seqLen/mu)
-        calibs,count_short = calibs_from_leaf_times(tree,sampling_time,short_terms_thres=cutoff,tauMin=tauMin,tauMax=tauMax)
-        constrs,weights = setup_constraints(tree,calibs)
-        print("Finished setting up constraints according to sampling time. Cutoff threshold for short branches set to " + str(cutoff) + ". Eliminated " + str(count_short) + " short terminal branches and relaxed their constraints.")
         
         # matching constr_idx and init_idx
         x0 = [0]*(len(weights)+2)
@@ -97,7 +101,7 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
             if node.constr_idx is not None:
                 x0[node.constr_idx] = x1[node.init_idx]
         x0[0] = T0[i]*x1[-1]       # mu*t0
-        mu = x0[1] = x1[-1]             # mu
+        mu = x0[1] = x1[-1]        # mu
         
         print("Initial state:")
         print("mu = " + str(x1[-1]))
@@ -164,18 +168,24 @@ def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0,tauMin=EPSILON
     calibs = []
 
     for node in tree.postorder_node_iter():
+        node.fixed_age = None
         if node is tree.seed_node:
             continue
         if node.is_leaf():
-            node.tmin = node.tmax = sampling_time[node.taxon.label]
+            node.fixed_age = node.tmin = node.tmax = sampling_time[node.taxon.label]
             if not node.is_short:
                calibs.append((node,node.tmin,node.tmax)) 
+            node.h =  0   
         else:
             if node.has_short_child:
-                node.tmax = min(c.tmax for c in node.child_node_iter() if c.is_short) - tauMin
-                node.tmin = node.tmax - tauMax
+                node.tmax = min(c.tmax for c in node.child_node_iter() if c.is_short)
+                node.tmin = None
+                node.h = max(c.h for c in node.child_node_iter() if c.is_short) + 1
                 if not node.is_short:
-                    calibs.append((node,node.tmin,node.tmax))                        
+                    node.tmax -= node.h*tauMin
+                    node.tmin = node.tmax - node.h*tauMax
+                    calibs.append((node,node.tmin,node.tmax))      
+                    node.fixed_age = (node.tmin + node.tmax)/2                  
     return calibs,count_short    
 
 def setup_constraints(tree,calibs):

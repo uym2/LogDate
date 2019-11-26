@@ -5,7 +5,7 @@ from math import log, sqrt, exp
 import random
 
 EPSILON_nu = 1e-5
-
+EPSILON_t = 1e-3
 
 def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=None):
     if seed is None:
@@ -16,13 +16,12 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
     history = []
     X = []
     T0 = []
+    
+    node_list = get_node_list(tree,min_nleaf=min_nleaf)
+    k = len(node_list)  
+    node_bitset = bitset('node_bitset',node_list)
 
     for i in range(rep):
-        tree_rep = Tree(tree)
-        node_list = get_node_list(tree_rep,min_nleaf=min_nleaf)
-        k = len(node_list)  
-        node_bitset = bitset('node_bitset',node_list)
-
         x = int(random.getrandbits(k))
 
         while x <= 0 or x in history:
@@ -30,7 +29,7 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
 
         history.append(x)
         selected = list(node_bitset.fromint(x))
-        x0,t0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
+        x0,t0 = date_as_selected(tree,sampling_time,selected,rootAge=rootAge)
         X.append(x0)
         T0.append(t0)
     
@@ -57,12 +56,32 @@ def get_node_list(tree, min_nleaf=3):
                 node_list.append(node)
     return tuple(node_list)         
 
-
-def date_as_selected(tree,sampling_time,selected,rootAge=None):
-# selected is a list of nodes; it MUST be sorted in postorder 
-    # add the root of tree to selected
-    #selected.append(tree.seed_node)
+def date_by_RTT(tree,sampling_time,rootAge=None,epsilon_t=EPSILON_t):
+    # preprocessing
+    for node in tree.postorder_node_iter():
+        node.as_leaf = False
+        if node.is_leaf():
+            node.time = sampling_time[node.taxon.label]
+        else:
+            node.time = None
+    t0 = rootAge if rootAge is not None else compute_date_as_root(tree.seed_node)          
     
+    if t0 is None:
+        t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
+        t0 = t_min - epsilon_t
+    
+    preprocess_node(tree.seed_node)
+
+    tree.seed_node.time = t0
+    date_from_root_and_leaves(tree.seed_node)
+        
+    x = compute_mu_from_dated_tree(tree)     
+    return x,t0
+
+
+def date_as_selected(tree,sampling_time,selected,rootAge=None,epsilon_t=EPSILON_t):
+# selected is a list of nodes; they MUST be sorted in postorder
+# each node in tree must have fixed_age attribute and at least two of them MUST NOT be None
     # refresh initial values
     preprocess_tree(tree,sampling_time)
 
@@ -79,7 +98,6 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None):
             node.as_leaf = True
     
     if t0 is None:
-        epsilon_t = 1e-3
         t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
         t0 = t_min - epsilon_t
     
@@ -88,16 +106,16 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None):
     tree.seed_node.time = t0
     date_from_root_and_leaves(tree.seed_node)
         
-    mu = compute_mu_from_dated_tree(tree)     
-    return mu,t0
+    x = compute_mu_from_dated_tree(tree)     
+    return x,t0
 
 def preprocess_tree(tree,sampling_time):
+# all nodes in tree must have 'fixed_age' attribute and at least two of them MUST NOT be None
+# the sampling_time is not needed in this updated version, but is kept to be consistent with 
+# the (obsolete) downstream codes that use this function   
    for node in tree.postorder_node_iter():
        node.as_leaf = False
-       if node.is_leaf():
-           node.time = sampling_time[node.taxon.label]
-       else:
-           node.time = None
+       node.time = node.fixed_age
 
 def preprocess_node(a_node):
     #print("Current node: " + a_node.label)

@@ -17,7 +17,7 @@ tree = Tree.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 n = 0
 smplt = {}
-EPSILON = 10**-5
+EPSILON = 10**-3
 ages = {}
 root_age = None
 
