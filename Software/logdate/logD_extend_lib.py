@@ -81,7 +81,7 @@ def log_from_random_init(tree,sampling_time,root_age=None,leaf_age=None,brScale=
 
     # multiple random initial points
     X,seed,T0 = random_date_init(tree,sampling_time,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
-    print("Finished initialization of " + str(nrep) + "replicates with random seed " + str(seed))
+    print("Finished initialization of " + str(nrep) + " replicates with random seed " + str(seed))
     
     f_min = None
     x_best = None
@@ -177,15 +177,14 @@ def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0,tauMin=EPSILON
                calibs.append((node,node.tmin,node.tmax)) 
             node.h =  0   
         else:
-            if node.has_short_child:
-                node.tmax = min(c.tmax for c in node.child_node_iter() if c.is_short)
-                node.tmin = None
-                node.h = max(c.h for c in node.child_node_iter() if c.is_short) + 1
-                if not node.is_short:
-                    node.tmax -= node.h*tauMin
-                    node.tmin = node.tmax - node.h*tauMax
-                    calibs.append((node,node.tmin,node.tmax))      
-                    node.fixed_age = (node.tmin + node.tmax)/2                  
+            node.tmax = min(c.tmax for c in node.child_node_iter())
+            node.tmin = None
+            node.h = max(c.h for c in node.child_node_iter()) + 1
+            if node.has_short_child and not node.is_short:
+                node.tmax -= node.h*tauMin
+                node.tmin = node.tmax - node.h*tauMax
+                calibs.append((node,node.tmin,node.tmax))      
+                node.fixed_age = (node.tmin + node.tmax)/2                  
     return calibs,count_short    
 
 def setup_constraints(tree,calibs):
