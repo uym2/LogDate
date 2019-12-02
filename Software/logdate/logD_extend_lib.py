@@ -141,6 +141,7 @@ def compute_time_tree(tree,x_best,sampling_time):
                 unprocess_clades.append(node)
     
     for node in unprocess_clades:            
+        preprocess_node(node)
         date_from_root_and_leaves(node)
 
     #for node in tree.preorder_node_iter():
