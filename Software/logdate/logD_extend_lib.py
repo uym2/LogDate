@@ -179,8 +179,9 @@ def calibs_from_leaf_times(tree,sampling_time,short_terms_thres=0,tauMin=EPSILON
         else:
             node.tmax = min(c.tmax for c in node.child_node_iter())
             node.tmin = None
-            node.h = max(c.h for c in node.child_node_iter()) + 1
+            node.h = max(c.h for c in node.child_node_iter() if c.is_short) + 1 if node.has_short_child else 0
             if node.has_short_child and not node.is_short:
+                print("Found one short clade with h = " + str(node.h))
                 node.tmax -= node.h*tauMin
                 node.tmin = node.tmax - node.h*tauMax
                 calibs.append((node,node.tmin,node.tmax))      
