@@ -13,6 +13,7 @@ import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
 import treeswift
+import cvxpy as cp
 
 MAX_ITER = 50000
 MIN_NU = 1e-12
@@ -37,13 +38,26 @@ def f_lsd():
 
 def f_LF():
     def f(x,*args):
-        return sum([b*(y-log(abs(y))) for (y,b) in zip(x[:-1],args[0])])
+        return sum([b*(y-log((abs(y)))) for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,*args):
-        return np.array([b*(1-1/abs(y)) for (y,b) in zip(x[:-1],args[0])] + [0])
+        return np.array([b*(1-1/y) for (y,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
         return diags([b/(y*y) for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
+def f_PL(alpha_lf=1,alpha_lg=1):
+# PL = "penalized likelihood"
+    def f(x,*args):
+        return sum([alpha_lf*b*(y-log(abs(y))) + alpha_lg*sqrt(b)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+    
+    def g(x,*args):
+        return np.array([alpha_lf*b*(1-1/abs(y)) + alpha_lg*sqrt(b)*2*log(abs(y))/abs(y) for (y,b) in zip(x[:-1],args[0])]+[0])
+        
+    def h(x,*args):
+        return diags([alpha_lf*b/(y*y) + alpha_lg*sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])] + [0])
 
     return f,g,h
 
@@ -101,15 +115,14 @@ def f_logDate_log_b():
         return diags([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
 
     return f,g,h    
-    
-def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,maxIter=MAX_ITER):
+
+def setup_constraint(tree,smpl_times,root_age=None):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
     cons_eq = []
     
     idx = 0
     b = [1.]*N
-    
 
     for node in tree.postorder_node_iter():
         node.idx = idx
@@ -134,11 +147,19 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
                 a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
                 cons_eq.append(a)    
 
+    return cons_eq,b
+
+    
+def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,maxIter=MAX_ITER):
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
+
+    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age)
+
     x0 = ([1.]*N + [0.01]) if x0 is None else x0
     bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)))
     args = (b)
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq))
-    #linear_constraint = LinearConstraint(cons_eq,[0]*len(cons_eq),[0]*len(cons_eq))
 
     if f_obj is not None:
         f,g,h = f_obj()
@@ -155,14 +176,80 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     print("mu = " + str(x0[-1]))
     print("fx = " + str(f(x0,args)))
     print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x0))))
-
+    
     result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
     
-    x = result.x
-    mu = x[N]
+    x_opt = result.x
+    mu = x_opt[N]
        
-    fx = f(x,args)
-    return mu,fx,x
+    fx = f(x_opt,args)
+
+    return mu,fx,x_opt  
+    
+    '''    
+    
+    C = [a[:-1] for a in cons_eq]
+    t = [a[-1] for a in cons_eq]
+
+    x = cp.Variable(N)
+    y = cp.Variable()
+    param = cp.Parameter((1,len(b)),nonneg=True,value=np.reshape(np.array(b),(1,len(b))))
+    #param = cp.Parameter((1,len(b)),nonneg=True,value=np.ones((1,len(b))))
+    objective = cp.Minimize(param*(x-cp.log(x)))
+    constraints = [np.array([MIN_NU]*N) <= x, MIN_MU <= y, csr_matrix(C)*x+y*np.array(t)==0]
+    prob = cp.Problem(objective, constraints)
+    fx = prob.solve(verbose=True)
+    x_opt = x.value
+    mu = y.value
+    print(x_opt)
+    print(f(np.append(x_opt,mu),args))
+
+    return mu,fx,np.append(x_opt,mu)
+    '''
+
+def run_LF_cvxpy(tree,sampling_time=None,root_age=None,leaf_age=None):
+    smpl_times = {}
+    
+    if sampling_time is None:
+        if leaf_age is None:
+            leaf_age = 1
+        for node in tree.leaf_node_iter():
+            smpl_times[node.taxon.label] = leaf_age
+        if root_age is None:
+            root_age = 0    
+    else:        
+        with open(sampling_time,"r") as fin:
+            fin.readline()
+            for line in fin:
+                name,time = line.split()
+                smpl_times[name] = float(time)
+    
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
+
+    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age)    
+    
+    C = [a[:-1] for a in cons_eq]
+    dt = [a[-1] for a in cons_eq]
+
+    x = cp.Variable(N) # nu
+    y = cp.Variable()  # mu
+
+    param = cp.Parameter((1,len(b)),nonneg=True,value=np.reshape(np.array(b),(1,len(b))))
+    objective = cp.Minimize(param*(x-cp.log(x)))
+    constraints = [np.array([MIN_NU]*N) <= x, MIN_MU <= y, csr_matrix(C)*x+y*np.array(dt)==0]
+    prob = cp.Problem(objective, constraints)
+    fx = prob.solve(verbose=True)
+    x_opt = np.append(x.value,y.value)
+    mu = y.value
+    
+    s_tree,t_tree = scale_tree(tree,x_opt)
+    print("Time tree")
+    print(t_tree.as_string("newick"))
+             
+    return mu,fx,x_opt,s_tree,t_tree 
+
+#def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,f_obj=None):
 
 
 def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,f_obj=None):
@@ -181,6 +268,13 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
+    
+    for node in tree.preorder_node_iter():
+        if node.is_leaf():
+            node.fixed_age = smpl_times[node.taxon.label]
+        else:    
+            node.fixed_age = None
+    
     X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
@@ -195,12 +289,11 @@ def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None
             print("Found a better log-scored configuration")
             print("New mutation rate: " + str(x_best[-1]))
             print("New log score: " + str(f_min))
-            print("Scaled tree")
-            print(s_tree.as_string("newick"))
+            #print("Scaled tree")
+            #print(s_tree.as_string("newick"))
             print("Time tree")
             print(t_tree.as_string("newick"))
              
-    
     return x_best[-1],f_min,x_best,s_tree,t_tree 
     
 
