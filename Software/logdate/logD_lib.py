@@ -150,7 +150,7 @@ def setup_constraint(tree,smpl_times,root_age=None):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,maxIter=MAX_ITER):
+def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_obj=None,f_args=None,maxIter=MAX_ITER):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
 
@@ -162,7 +162,11 @@ def logIt(tree,smpl_times,root_age=None,seqLen=1000,brScale=None,c=10,x0=None,f_
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq))
 
     if f_obj is not None:
-        f,g,h = f_obj()
+        if f_args is None:
+            alpha_lf = alpha_lg = 1
+        else:
+            alpha_lf, alpha_lg = f_args    
+        f,g,h = f_obj(alpha_lf,alpha_lg)
     elif brScale == 'sqrt':
         f,g,h = f_logDate_sqrt_b()
     elif brScale == 'log':
@@ -234,8 +238,30 @@ def run_LF_cvxpy(tree,sampling_time=None,root_age=None,leaf_age=None):
              
     return x_opt[-1],fx,x_opt,s_tree,t_tree 
 
-#def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,f_obj=None):
+def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=None,maxIter=MAX_ITER):
+    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
 
+    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age)    
+    x_lf,_ = find_LF_opt(cons_eq,b)   
+   
+    '''
+    max_nu = 10 #max(x_lf[:-1])
+    print("max_nu = " + str(max_nu))
+    
+    alpha1 = log(max_nu)*log(max_nu)
+    alpha2 = (max_nu - log(max_nu)) - 1
+    print("alpha_lf = " + str(alpha1) + ", alpha_lg = " + str(alpha2))
+    '''
+    alpha1 = alpha2 = 1
+
+    _,f_opt,x_opt = logIt(tree,smpl_times,root_age=root_age,x0=x_lf,maxIter=maxIter,f_obj=f_PL,f_args=(alpha1,alpha2))
+    s_tree,t_tree = scale_tree(tree,x_opt)
+   
+    return x_opt[-1],f_opt,x_opt,s_tree,t_tree
+    
+    
 
 def logDate_with_random_init(tree,sampling_time=None,root_age=None,leaf_age=None,brScale=False,nrep=1,min_nleaf=3,seqLen=1000,maxIter=MAX_ITER,seed=None,f_obj=None):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)

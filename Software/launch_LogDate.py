@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 import logdate
-from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init, f_LF, f_lsd,f_PL,run_LF_cvxpy
+from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init, f_LF, f_lsd,f_PL,run_LF_cvxpy,logDate_with_penalize_llh
 from logdate.logD_CI_lib import logCI_with_lsd
 from logdate.logD_extend_lib import write_time_tree,log_from_random_init
 from dendropy import Tree
@@ -67,6 +67,8 @@ else:
     print("Objective function: " + objective)    
     if objective == "LF":
         mu,f,x,s_tree,t_tree = run_LF_cvxpy(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge)
+    elif objective == "PL":
+        mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
         mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,f_obj=f_obj)
 
