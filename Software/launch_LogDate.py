@@ -2,6 +2,7 @@
 
 import logdate
 from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init, f_LF, f_lsd,f_PL,run_LF_cvxpy,logDate_with_penalize_llh
+from logdate.logD_lib import f_wlogDate_sqrt_scale, f_logDate_sqrt_scale, f_logDate_sqrt_b, f_logDate
 from logdate.logD_CI_lib import logCI_with_lsd
 from logdate.logD_extend_lib import write_time_tree,log_from_random_init
 from dendropy import Tree
@@ -47,8 +48,14 @@ elif objective == "LSD":
     f_obj = f_lsd
 elif objective == "PL":
     f_obj = f_PL    
+elif objective == "LogDate":
+    f_obj = f_logDate_sqrt_scale
+    #f_obj = f_logDate
 elif objective == "wLogDate":
-    brScale = "sqrt"            
+    f_obj = f_wlogDate_sqrt_scale
+    #f_obj = f_logDate_sqrt_b 
+    
+    #brScale = "sqrt"            
 
 if args["pseudo"]:
     smpl_time = {}
@@ -70,7 +77,7 @@ else:
     elif objective == "PL":
         mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,brScale=brScale,seqLen=seqLen,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,f_obj=f_obj)
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,sqrt_scale=True)
 
     t_tree_swift = treeswift.read_tree_dendropy(t_tree)
     t_tree_swift.write_tree_newick(args["output"])
