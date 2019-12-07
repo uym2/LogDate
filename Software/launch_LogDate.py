@@ -79,7 +79,7 @@ else:
     elif objective == "PL":
         mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,sqrt_scale=sqrt_scale,pseudo=pseudo)
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,sqrt_scale=sqrt_scale,pseudo=pseudo)
 
     t_tree_swift = treeswift.read_tree_dendropy(t_tree)
     t_tree_swift.write_tree_newick(args["output"])
