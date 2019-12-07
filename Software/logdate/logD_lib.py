@@ -23,7 +23,7 @@ MIN_MU = 1e-5
 #lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
 #lsd_exec=normpath(join(dirname(realpath(__file__)),lsd_file))
 
-def f_logDate_sqrt_scale():
+def f_logDate_sqrt_scale(pseudo=0,seqLen=1000):
 # square-root scaling strategy: let nu'_i = sqrt(b_i)*nu_i; solve the optimzation problem for nu' instead of nu
     def f(x,*args):
         return sum([log(abs(y/sqrt(b)))**2 for (y,b) in zip(x[:-1],args[0])])
@@ -36,35 +36,35 @@ def f_logDate_sqrt_scale():
 
     return f,g,h
 
-def f_wlogDate_sqrt_scale():
+def f_wlogDate_sqrt_scale(pseudo=0,seqLen=1000):
 # square-root scaling strategy: let nu'_i = sqrt(b_i)*nu_i; solve the optimzation problem for nu' instead of nu
     def f(x,*args):
-        w = [ sqrt(b+1e-3) for b in args[0]]
+        w = [ sqrt(b+pseudo/seqLen) for b in args[0]]
         return sum([a*(log(abs(y/sqrt(b))))**2 for (y,a,b) in zip(x[:-1],w,args[0])])
 
     def g(x,*args):
-        w = [ sqrt(b+1e-3) for b in args[0]]
+        w = [ sqrt(b+pseudo/seqLen) for b in args[0]]
         return np.array([a*2*(log(abs(y/sqrt(b))))/y for (y,a,b) in zip(x[:-1],w,args[0])] + [0])
 
     def h(x,*args):
-        w = [ sqrt(b+1e-3) for b in args[0]]
+        w = [ sqrt(b+pseudo/seqLen) for b in args[0]]
         return diags([a*2*(1-log(abs(y/sqrt(b))))/y**2 for (y,a,b) in zip(x[:-1],w,args[0])]+[0])	
 
     return f,g,h
 
-def f_lsd():
+def f_lsd(pseudo=10,seqLen=1000):
     def f(x,*args):
-        return sum([b*(y-1)*(y-1) for (y,b) in zip(x[:-1],args[0])])
+        return sum([(b+pseudo/seqLen)*(y-1)*(y-1) for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,*args):
-        return np.array([2*b*(y-1) for (y,b) in zip(x[:-1],args[0])] + [0])
+        return np.array([2*(b+pseudo/seqLen)*(y-1) for (y,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        return diags([2*b for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([2*(b+pseudo/seqLen) for (y,b) in zip(x[:-1],args[0])]+[0])	
 
     return f,g,h
 
-def f_LF():
+def f_LF(pseudo=0,seqLen=1000):
     def f(x,*args):
         return sum([b*(y-log((abs(y)))) for (y,b) in zip(x[:-1],args[0])])
 
@@ -89,22 +89,7 @@ def f_PL(alpha_lf=1,alpha_lg=1):
 
     return f,g,h
 
-def f_logDate_lsd(c=10,s=1000):
-# follow the LSD paper for weighting strategy
-    def f(x,*args):
-        return sum([(b+c/s)/s*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
-    
-    def g(x,*args):
-        return np.array([2*(b+c/s)/s*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
-
-    def h(x,*args):
-        #return np.diag([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
-        return diags([(b+c/s)/s*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
-        
-
-    return f,g,h
-
-def f_logDate():
+def f_logDate(pseudo=0,seqLen=1000):
     def f(x,*args):
         return sum([log(abs(y))**2 for y in x[:-1]])
 
@@ -117,30 +102,28 @@ def f_logDate():
 
     return f,g,h
 
-def f_logDate_sqrt_b():
+def f_logDate_sqrt_b(pseudo=0,seqLen=1000):
     def f(x,*args):
-        return sum([sqrt(b+1e-3)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+        return sum([sqrt(b+pseudo/seqLen)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,*args):
-        return np.array([2*sqrt(b+1e-3)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+        return np.array([2*sqrt(b+pseudo/seqLen)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        #return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
-        return diags([sqrt(b+1e-3)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([sqrt(b+pseudo/seqLen)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
 
     return f,g,h
 
 
-def f_logDate_log_b():
+def f_logDate_log_b(pseudo=0,seqLen=1000):
     def f(x,*args):
-        return sum([log(1+sqrt(b))*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+        return sum([log(1+sqrt(b+pseudo/seqLen))*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,*args):
-        return np.array([2*log(1+sqrt(b))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+        return np.array([2*log(1+sqrt(b+pseudo/seqLen))*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
-        #return np.diag([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
-        return diags([log(1+sqrt(b))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
+        return diags([log(1+sqrt(b+pseudo/seqLen))*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])
 
     return f,g,h    
 
@@ -178,7 +161,7 @@ def setup_constraint(tree,smpl_times,root_age=None,sqrt_scale=False):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,f_obj,sqrt_scale=False,root_age=None,x0=None,maxIter=MAX_ITER):
+def logIt(tree,smpl_times,f_obj,sqrt_scale=False,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
 
@@ -193,7 +176,7 @@ def logIt(tree,smpl_times,f_obj,sqrt_scale=False,root_age=None,x0=None,maxIter=M
     args = (b)
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq),keep_feasible=False)
 
-    f,g,h = f_obj()
+    f,g,h = f_obj(pseudo=pseudo,seqLen=seqLen)
     
     print("Initial state:" )
     print("mu = " + str(x_init[-1]))
@@ -283,7 +266,7 @@ def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=Non
     
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,sqrt_scale=False):
+def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,sqrt_scale=False,pseudo=0,seqLen=1000):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
@@ -298,7 +281,7 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
     x_best = None
 
     for i,x0 in enumerate(X):
-        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,sqrt_scale=sqrt_scale)
+        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,sqrt_scale=sqrt_scale,pseudo=pseudo,seqLen=seqLen)
         if f_min is None or f < f_min:
             f_min = f
             x_best = x

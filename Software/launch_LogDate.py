@@ -26,6 +26,7 @@ parser.add_argument("-s","--rseed",required=False,help="Random seed to generate 
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
 parser.add_argument("-m","--maxIter",required=False,help="The maximum number of iterations for optimization. Default: 50000")
 parser.add_argument("-q","--sqScale",action='store_true',help="Do square-root scaling")
+parser.add_argument("-u","--addpseudo",required=False,help="Add pseudo counting for per-branch weighting.Default: 0")
 
 args = vars(parser.parse_args())
 
@@ -36,6 +37,7 @@ leafAge = float(args["leafAge"]) if args["leafAge"] else None
 lsdDir = args["tempdir"] if args["tempdir"] else None
 nrep = int(args["rep"]) if args["rep"] else 1
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
+pseudo = 0 if args["addpseudo"] is None else float(args["addpseudo"])
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
 sqrt_scale = args["sqScale"]
@@ -77,7 +79,7 @@ else:
     elif objective == "PL":
         mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,sqrt_scale=sqrt_scale)
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,sqrt_scale=sqrt_scale,pseudo=pseudo)
 
     t_tree_swift = treeswift.read_tree_dendropy(t_tree)
     t_tree_swift.write_tree_newick(args["output"])
