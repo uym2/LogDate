@@ -39,13 +39,16 @@ def f_logDate_sqrt_scale():
 def f_wlogDate_sqrt_scale():
 # square-root scaling strategy: let nu'_i = sqrt(b_i)*nu_i; solve the optimzation problem for nu' instead of nu
     def f(x,*args):
-        return sum([sqrt(b)*(log(abs(y/sqrt(b))))**2 for (y,b) in zip(x[:-1],args[0])])
+        w = [ sqrt(b+1e-3) for b in args[0]]
+        return sum([a*(log(abs(y/sqrt(b))))**2 for (y,a,b) in zip(x[:-1],w,args[0])])
 
     def g(x,*args):
-        return np.array([sqrt(b)*2*(log(abs(y/sqrt(b))))/y for (y,b) in zip(x[:-1],args[0])] + [0])
+        w = [ sqrt(b+1e-3) for b in args[0]]
+        return np.array([a*2*(log(abs(y/sqrt(b))))/y for (y,a,b) in zip(x[:-1],w,args[0])] + [0])
 
     def h(x,*args):
-        return diags([sqrt(b)*2*(1-log(abs(y/sqrt(b))))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        w = [ sqrt(b+1e-3) for b in args[0]]
+        return diags([a*2*(1-log(abs(y/sqrt(b))))/y**2 for (y,a,b) in zip(x[:-1],w,args[0])]+[0])	
 
     return f,g,h
 
@@ -116,14 +119,14 @@ def f_logDate():
 
 def f_logDate_sqrt_b():
     def f(x,*args):
-        return sum([sqrt(b)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+        return sum([sqrt(b+1e-3)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
 
     def g(x,*args):
-        return np.array([2*sqrt(b)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+        return np.array([2*sqrt(b+1e-3)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
 
     def h(x,*args):
         #return np.diag([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
-        return diags([sqrt(b)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+        return diags([sqrt(b+1e-3)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
 
     return f,g,h
 
@@ -182,28 +185,27 @@ def logIt(tree,smpl_times,f_obj,sqrt_scale=False,root_age=None,x0=None,maxIter=M
     cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age,sqrt_scale=sqrt_scale)
     
     if x0 is None:
-        x0 = ([sqrt(a) for a in b] + [0.01]) if sqrt_scale else ([1.]*N + [0.01])
+        x_init = ([sqrt(a) for a in b] + [0.01]) if sqrt_scale else ([1.]*N + [0.01])
     else:
-        x0 = ([sqrt(a)*x for (x,a) in zip (x0[:-1],b)]+[x0[-1]]) if sqrt_scale else x0
+        x_init = ([sqrt(a)*x for (x,a) in zip (x0[:-1],b)]+[x0[-1]]) if sqrt_scale else x0
             
-    bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)))
+    bounds = Bounds(np.array([MIN_NU*(sqrt(a)**sqrt_scale) for a in b]+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
     args = (b)
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq),keep_feasible=False)
 
     f,g,h = f_obj()
     
     print("Initial state:" )
-    print("mu = " + str(x0[-1]))
-    print("fx = " + str(f(x0,args)))
-    print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x0))))
+    print("mu = " + str(x_init[-1]))
+    print("fx = " + str(f(x_init,args)))
+    print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x_init))))
     
-    result = minimize(fun=f,method="trust-constr",x0=x0,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
     
     x_opt = [ x/sqrt(a) for (x,a) in zip(result.x[:-1],b) ] + [result.x[-1]] if sqrt_scale else result.x
     mu = x_opt[N]
     fx = result.fun  
-    #fx = f(x_opt,args)
-
+    
     return mu,fx,x_opt  
 
 def setup_smpl_time(tree,sampling_time=None,root_age=None,leaf_age=None):

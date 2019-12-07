@@ -25,6 +25,7 @@ parser.add_argument("-p","--rep",required=False,help="The number of random repli
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
 parser.add_argument("-m","--maxIter",required=False,help="The maximum number of iterations for optimization. Default: 50000")
+parser.add_argument("-q","--sqScale",action='store_true',help="Do square-root scaling")
 
 args = vars(parser.parse_args())
 
@@ -37,6 +38,7 @@ nrep = int(args["rep"]) if args["rep"] else 1
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
+sqrt_scale = args["sqScale"]
 
 brScale = None
 f_obj = None
@@ -49,11 +51,9 @@ elif objective == "LSD":
 elif objective == "PL":
     f_obj = f_PL    
 elif objective == "LogDate":
-    f_obj = f_logDate_sqrt_scale
-    #f_obj = f_logDate
+    f_obj = f_logDate_sqrt_scale if sqrt_scale else f_logDate
 elif objective == "wLogDate":
-    f_obj = f_wlogDate_sqrt_scale
-    #f_obj = f_logDate_sqrt_b 
+    f_obj = f_wlogDate_sqrt_scale if sqrt_scale else f_logDate_sqrt_b 
     
     #brScale = "sqrt"            
 
@@ -77,7 +77,7 @@ else:
     elif objective == "PL":
         mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,sqrt_scale=True)
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,sqrt_scale=sqrt_scale)
 
     t_tree_swift = treeswift.read_tree_dendropy(t_tree)
     t_tree_swift.write_tree_newick(args["output"])
