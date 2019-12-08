@@ -275,13 +275,28 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
         else:    
             node.fixed_age = None
     
-    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    X,seed,_ = random_date_init(tree,smpl_times,2*nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
 
-    for i,x0 in enumerate(X):
-        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,sqrt_scale=sqrt_scale,pseudo=pseudo,seqLen=seqLen)
+    i = 0
+    n_succeed = 0
+
+    while n_succeed < nrep and i < 2*nrep:
+        try:
+            x0 = X[i]
+            _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,sqrt_scale=sqrt_scale,pseudo=pseudo,seqLen=seqLen)
+            print("Initial point " + str(i+1) + " succeeded")
+            n_succeed += 1                
+            i += 1
+        except:
+            print("Initial point " + str(i+1) + " failed")
+            print("Failing point: " )
+            print(x0)
+            i += 1
+            continue
+        
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
