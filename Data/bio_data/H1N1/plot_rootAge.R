@@ -20,4 +20,4 @@ ggplot(d, aes(x=method,fill=method)) +
     theme(axis.text.x = element_blank(),axis.title.x = element_blank(),axis.ticks.x=element_blank()) +
     scale_fill_brewer(palette = "Paired")
 
-ggsave("tMRCA.pdf",height = 3,width = 4)
+ggsave("tMRCA.pdf",height = 3,width = 4.5)

@@ -1,0 +1,6 @@
+#! /bin/bash
+
+python get_BEAST_tree.py h1n1_cleaned_with_fixed_phyml_tree_no_og_GTRGI4_relaxLn_constPop_expPriors_3.combined1374.tre phyML_B_lnorm.tre
+python get_BEAST_tree.py h1n1_cleaned_with_fixed_phyml_tree_no_og_GTRGI4_strict_constPop_expPriors_3.combined1320.tre phyML_B_strict.tre
+python get_BEAST_tree.py h1n1_cleaned_with_phyml_tree_no_og_GTRGI4_relaxLn_constPop_expPriors_1.combined1000.tre B_lnorm.tre
+python get_BEAST_tree.py h1n1_cleaned_with_phyml_tree_no_og_GTRGI4_strict_constPop_expPriors_1.combined1000.tre B_strict.tre
