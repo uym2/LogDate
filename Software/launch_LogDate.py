@@ -1,15 +1,19 @@
 #! /usr/bin/env python
 
 import logdate
-from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init, f_LF, f_lsd,f_PL,run_LF_cvxpy,logDate_with_penalize_llh
+from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init,logDate_with_penalize_llh
+from logdate.logD_lib import f_LF,f_lsd,f_PL,run_LF_cvxpy,f_wlogDate_linear_scale
 from logdate.logD_lib import f_wlogDate_sqrt_scale, f_logDate_sqrt_scale, f_logDate_sqrt_b, f_logDate
 from logdate.logD_CI_lib import logCI_with_lsd
 from logdate.logD_extend_lib import write_time_tree,log_from_random_init
 from dendropy import Tree
 import treeswift
 import argparse
+from sys import argv
 
 print("Launching " + logdate.PROGRAM_NAME + " version " + logdate.PROGRAM_VERSION)
+print(logdate.PROGRAM_NAME + " was called as follow")
+print(" ".join(argv))
 
 parser = argparse.ArgumentParser()
 
@@ -25,7 +29,7 @@ parser.add_argument("-p","--rep",required=False,help="The number of random repli
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
 parser.add_argument("-m","--maxIter",required=False,help="The maximum number of iterations for optimization. Default: 50000")
-parser.add_argument("-q","--sqScale",action='store_true',help="Do square-root scaling")
+parser.add_argument("-q","--scale",required=False,help="Scaling strategy. Either None, sqrt, or linear. Default: None")
 parser.add_argument("-u","--addpseudo",required=False,help="Add pseudo counting for per-branch weighting.Default: 0")
 
 args = vars(parser.parse_args())
@@ -40,7 +44,7 @@ seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 pseudo = 0 if args["addpseudo"] is None else float(args["addpseudo"])
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
-sqrt_scale = args["sqScale"]
+scale = args["scale"] if args["scale"] else None
 
 brScale = None
 f_obj = None
@@ -52,10 +56,20 @@ elif objective == "LSD":
     f_obj = f_lsd
 elif objective == "PL":
     f_obj = f_PL    
-elif objective == "LogDate":
-    f_obj = f_logDate_sqrt_scale if sqrt_scale else f_logDate
+elif objective == "LogDate":    
+    if scale == 'sqrt':
+        f_obj = f_logDate_sqrt_scale
+    elif scale == 'linear':
+        f_obj = f_logDate_linear_scale
+    else:    
+        f_obj = f_logDate
 elif objective == "wLogDate":
-    f_obj = f_wlogDate_sqrt_scale if sqrt_scale else f_logDate_sqrt_b 
+    if scale == 'sqrt':
+        f_obj = f_wlogDate_sqrt_scale 
+    elif scale=='linear':
+        f_obj = f_wlogDate_linear_scale
+    else:
+        f_obj = f_logDate_sqrt_b 
     
     #brScale = "sqrt"            
 
@@ -73,13 +87,12 @@ if args["pseudo"]:
     print("Clock rate: " + str(x[1]))
     print("Root age: " + str(x[0]/x[1]))
 else:
-    print("Objective function: " + objective)    
     if objective == "LF":
         mu,f,x,s_tree,t_tree = run_LF_cvxpy(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge)
     elif objective == "PL":
         mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
-        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,sqrt_scale=sqrt_scale,pseudo=pseudo)
+        mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,scale=scale,pseudo=pseudo,seqLen=seqLen)
 
     t_tree_swift = treeswift.read_tree_dendropy(t_tree)
     t_tree_swift.write_tree_newick(args["output"])

@@ -52,6 +52,35 @@ def f_wlogDate_sqrt_scale(pseudo=0,seqLen=1000):
 
     return f,g,h
 
+def f_logDate_linear_scale(pseudo=0,seqLen=1000):
+# square-root scaling strategy: let nu'_i = sqrt(b_i)*nu_i; solve the optimzation problem for nu' instead of nu
+    def f(x,*args):
+        return sum([log(abs(y/b))**2 for (y,b) in zip(x[:-1],args[0])])
+
+    def g(x,*args):
+        return np.array([2*(log(abs(y/b)))/y for (y,b) in zip(x[:-1],args[0])] + [0])
+
+    def h(x,*args):
+        return diags([2*(1-log(abs(y/b)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
+def f_wlogDate_linear_scale(pseudo=0,seqLen=1000):
+# square-root scaling strategy: let nu'_i = sqrt(b_i)*nu_i; solve the optimzation problem for nu' instead of nu
+    def f(x,*args):
+        w = [ sqrt(b+pseudo/seqLen) for b in args[0]]
+        return sum([a*(log(abs(y/b)))**2 for (y,a,b) in zip(x[:-1],w,args[0])])
+
+    def g(x,*args):
+        w = [ sqrt(b+pseudo/seqLen) for b in args[0]]
+        return np.array([a*2*(log(abs(y/b)))/y for (y,a,b) in zip(x[:-1],w,args[0])] + [0])
+
+    def h(x,*args):
+        w = [ sqrt(b+pseudo/seqLen) for b in args[0]]
+        return diags([a*2*(1-log(abs(y/b)))/y**2 for (y,a,b) in zip(x[:-1],w,args[0])]+[0])	
+
+    return f,g,h
+
 def f_lsd(pseudo=10,seqLen=1000):
     def f(x,*args):
         return sum([(b+pseudo/seqLen)*(y-1)*(y-1) for (y,b) in zip(x[:-1],args[0])])
@@ -127,7 +156,7 @@ def f_logDate_log_b(pseudo=0,seqLen=1000):
 
     return f,g,h    
 
-def setup_constraint(tree,smpl_times,root_age=None,sqrt_scale=False):
+def setup_constraint(tree,smpl_times,root_age=None,scale=None):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
     cons_eq = []
@@ -141,7 +170,12 @@ def setup_constraint(tree,smpl_times,root_age=None,sqrt_scale=False):
         if node.is_leaf():
             node.height = 0
             node.constraint = [0.0]*(N+1)
-            node.constraint[node.idx] = sqrt(node.edge_length) if sqrt_scale else node.edge_length
+            if scale is None:
+                node.constraint[node.idx] = node.edge_length
+            elif scale == 'sqrt':    
+                node.constraint[node.idx] = sqrt(node.edge_length) 
+            elif scale == 'linear':
+                node.constraint[node.idx] = 1 
             node.constraint[N] = -smpl_times[node.taxon.label]
             b[node.idx] = node.edge_length
         else:
@@ -152,7 +186,12 @@ def setup_constraint(tree,smpl_times,root_age=None,sqrt_scale=False):
 
             if node is not tree.seed_node: 
                 node.constraint = children[0].constraint if children[0].height < children[1].height else children[1].constraint
-                node.constraint[node.idx] = sqrt(node.edge_length) if sqrt_scale else node.edge_length
+                if scale is None:
+                    node.constraint[node.idx] = node.edge_length
+                elif scale == 'sqrt':    
+                    node.constraint[node.idx] = sqrt(node.edge_length) 
+                elif scale == 'linear':
+                    node.constraint[node.idx] = 1 
                 b[node.idx] = node.edge_length
             elif root_age is not None:
                 a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
@@ -161,18 +200,22 @@ def setup_constraint(tree,smpl_times,root_age=None,sqrt_scale=False):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,f_obj,sqrt_scale=False,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000):
+def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
 
-    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age,sqrt_scale=sqrt_scale)
+    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age,scale=scale)
+
+    if scale is None:
+        bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
+        x_init = [1.]*N + [0.01] if x0 is None else x0
+    elif scale == 'sqrt':
+        bounds = Bounds(np.array([MIN_NU*sqrt(a) for a in b]+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
+        x_init = [sqrt(a) for a in b] + [0.01] if x0 is None  else [sqrt(a)*x for (x,a) in zip (x0[:-1],b)]+[x0[-1]]
+    elif scale == 'linear':    
+        bounds = Bounds(np.array([MIN_NU*a for a in b]+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
+        x_init = [a]*N + [0.01] if x0 is None else [a*x for (x,a) in zip (x0[:-1],b)]+[x0[-1]]
     
-    if x0 is None:
-        x_init = ([sqrt(a) for a in b] + [0.01]) if sqrt_scale else ([1.]*N + [0.01])
-    else:
-        x_init = ([sqrt(a)*x for (x,a) in zip (x0[:-1],b)]+[x0[-1]]) if sqrt_scale else x0
-            
-    bounds = Bounds(np.array([MIN_NU*(sqrt(a)**sqrt_scale) for a in b]+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
     args = (b)
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq),keep_feasible=False)
 
@@ -184,8 +227,14 @@ def logIt(tree,smpl_times,f_obj,sqrt_scale=False,root_age=None,x0=None,maxIter=M
     print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x_init))))
     
     result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
-    
-    x_opt = [ x/sqrt(a) for (x,a) in zip(result.x[:-1],b) ] + [result.x[-1]] if sqrt_scale else result.x
+   
+    if scale is None:
+        x_opt = result.x
+    elif scale == 'sqrt':
+         x_opt = [ x/sqrt(a) for (x,a) in zip(result.x[:-1],b) ] + [result.x[-1]]
+    elif scale == 'linear':     
+         x_opt = [ x/a for (x,a) in zip(result.x[:-1],b) ] + [result.x[-1]]
+
     mu = x_opt[N]
     fx = result.fun  
     
@@ -266,7 +315,7 @@ def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=Non
     
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,sqrt_scale=False,pseudo=0,seqLen=1000):
+def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
@@ -275,7 +324,7 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
         else:    
             node.fixed_age = None
     
-    X,seed,_ = random_date_init(tree,smpl_times,2*nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
@@ -283,19 +332,11 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
     i = 0
     n_succeed = 0
 
-    while n_succeed < nrep and i < 2*nrep:
-        try:
-            x0 = X[i]
-            _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,sqrt_scale=sqrt_scale,pseudo=pseudo,seqLen=seqLen)
-            print("Initial point " + str(i+1) + " succeeded")
-            n_succeed += 1                
-            i += 1
-        except:
-            print("Initial point " + str(i+1) + " failed")
-            print("Failing point: " )
-            print(x0)
-            i += 1
-            continue
+    for i,x0 in enumerate(X):
+        x0 = X[i]
+        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen)
+        print("Found local optimal for Initial point " + str(i+1))
+        n_succeed += 1                
         
         if f_min is None or f < f_min:
             f_min = f

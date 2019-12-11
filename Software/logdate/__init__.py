@@ -8,6 +8,6 @@
 PROGRAM_NAME = "LogDate"
 PROGRAM_AUTHOR = ["Uyen Mai","Siavash Mirarab"]
 PROGRAM_LICENSE = "GNU General Public License, version 3"
-PROGRAM_VERSION = "1.2.0"
+PROGRAM_VERSION = "1.2.2"
 PROGRAM_YEAR = "2019"
 PROGRAM_INSTITUTE = "Department of Computer Science and Engineering, University of California at San Diego"
