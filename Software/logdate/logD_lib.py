@@ -12,8 +12,9 @@ from logdate.init_lib import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
-import treeswift
 import cvxpy as cp
+import dendropy
+from logdate.tree_lib import tree_as_newick
 
 MAX_ITER = 50000
 MIN_NU = 1e-12
@@ -382,10 +383,7 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,
 def run_lsd(tree,sampling_time,outputDir=None):
     wdir = outputDir if outputDir is not None else mkdtemp()
     treefile = normpath(join(wdir,"mytree.tre"))
-    print(treefile)
-    tree_swift = treeswift.read_tree_dendropy(tree)
-    #tree.write_to_path(treefile,"newick")
-    tree_swift.write_tree_newick(treefile)
+    tree_as_newick(tree,outfile=treefile,append=False)
     call([lsd_exec,"-i",treefile,"-d",sampling_time,"-v","-c"])
     return wdir
         

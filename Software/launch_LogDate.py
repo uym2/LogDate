@@ -7,7 +7,9 @@ from logdate.logD_lib import f_wlogDate_sqrt_scale, f_logDate_sqrt_scale, f_logD
 from logdate.logD_CI_lib import logCI_with_lsd
 from logdate.logD_extend_lib import write_time_tree,log_from_random_init
 from dendropy import Tree
-import treeswift
+import dendropy
+#import treeswift
+from logdate.tree_lib import tree_as_newick
 import argparse
 from sys import argv
 
@@ -93,8 +95,9 @@ else:
         mu,f,x,s_tree,t_tree = logDate_with_penalize_llh(tree,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,maxIter=maxIter)
     else:
         mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,scale=scale,pseudo=pseudo,seqLen=seqLen)
+    tree_as_newick(t_tree,outfile=args["output"],append=False)
 
-    t_tree_swift = treeswift.read_tree_dendropy(t_tree)
-    t_tree_swift.write_tree_newick(args["output"])
+    #t_tree_swift = treeswift.read_tree_dendropy(t_tree)
+    #t_tree_swift.write_tree_newick(args["output"])
     print("Clock rate: " + str(mu))
     print("Log score: " + str(f))
