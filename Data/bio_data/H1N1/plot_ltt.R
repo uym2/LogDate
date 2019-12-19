@@ -11,3 +11,4 @@ ggplot(d,aes(x=time,y=lineages,color=method)) + geom_line() + theme_classic() +
   scale_color_brewer(palette = "Paired")
 
 ggsave("H1N1_ltt.pdf",height = 3,width = 3)
+ggsave("~/my_gits/LogDate/Figures/Revised_results/Figure_4b_revised.pdf",height=3,width=3)

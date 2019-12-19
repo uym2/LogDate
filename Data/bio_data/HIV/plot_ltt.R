@@ -9,3 +9,4 @@ ggplot(d,aes(x=time,y=lineages,color=method)) + geom_line() + theme_classic() +
   theme(legend.position = "None")
 
 ggsave("HIV_ltt.pdf",height = 3,width = 4.5)
+ggsave("~/my_gits/LogDate/Figures/Revised_results/Figure_4c_revised.pdf",height=3,width=3)

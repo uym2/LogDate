@@ -3,7 +3,7 @@
 import treeswift
 
 tree_lsd = treeswift.read_tree_newick("phyML_noOG_rooted.tre.result.date.newick")
-tree_logD = treeswift.read_tree_newick("wlogDu1q10r.tre")
+tree_logD = treeswift.read_tree_newick("wlogDu001q10r.tre")
 tree_phyML_Bstr = treeswift.read_tree_newick("phyML_B_strict.tre")
 tree_phyML_Bln = treeswift.read_tree_newick("phyML_B_lnorm.tre")
 tree_Bstr = treeswift.read_tree_newick("B_strict.tre")
