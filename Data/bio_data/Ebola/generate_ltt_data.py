@@ -3,7 +3,7 @@
 import treeswift
 
 tree_lsd = treeswift.read_tree_newick("lsd.tre")
-tree_logD = treeswift.read_tree_newick("wLogDq10r.tre")
+tree_logD = treeswift.read_tree_newick("wlogDu001q10r.tre")
 tree_beast = treeswift.read_tree_newick("BEAST.tre")
 tree_lf = treeswift.read_tree_newick("LF.tre")
 

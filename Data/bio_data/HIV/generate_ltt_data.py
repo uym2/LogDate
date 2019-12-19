@@ -3,7 +3,7 @@
 import treeswift
 
 tree_lsd = treeswift.read_tree_newick("lsd_ingroups.tre")
-tree_logD = treeswift.read_tree_newick("wLogDu10r_ingroups.tre")
+tree_logD = treeswift.read_tree_newick("wlogDr10u001_ingroups.tre")
 tree_lf = treeswift.read_tree_newick("LF_ingroups.tre")
 
 
