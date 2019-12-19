@@ -5,23 +5,24 @@ from math import log, sqrt, exp
 import random
 
 EPSILON_nu = 1e-5
-
+EPSILON_t = 1e-3
 
 def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=None):
     if seed is None:
         seed = random.randint(0,1024)
 
     random.seed(a=seed)    
-
+    initial_fix_age(tree)
+    
     history = []
     X = []
+    T0 = []
+    
+    node_list = get_node_list(tree,min_nleaf=min_nleaf)
+    k = len(node_list)  
+    node_bitset = bitset('node_bitset',node_list)
 
     for i in range(rep):
-        tree_rep = Tree(tree)
-        node_list = get_node_list(tree_rep,min_nleaf=min_nleaf)
-        k = len(node_list)  
-        node_bitset = bitset('node_bitset',node_list)
-
         x = int(random.getrandbits(k))
 
         while x <= 0 or x in history:
@@ -29,10 +30,11 @@ def random_date_init(tree, sampling_time, rep, rootAge=None, min_nleaf=3, seed=N
 
         history.append(x)
         selected = list(node_bitset.fromint(x))
-        x0 = date_as_selected(tree_rep,sampling_time,selected,rootAge=rootAge)
+        x0,t0 = date_as_selected(tree,sampling_time,selected,rootAge=rootAge)
         X.append(x0)
+        T0.append(t0)
     
-    return X,seed   
+    return X,seed,T0   
          
 def print_date(tree,fout=None):
     for node in tree.postorder_node_iter():
@@ -51,16 +53,36 @@ def get_node_list(tree, min_nleaf=3):
             node.nleaf = 1
         else:
             node.nleaf = sum([x.nleaf for x in node.child_node_iter()])
-            if node is not tree.seed_node and node.nleaf >= min_nleaf:
+            if node is not tree.seed_node and node.nleaf >= min_nleaf and node.fixed_age is None:
                 node_list.append(node)
     return tuple(node_list)         
 
-
-def date_as_selected(tree,sampling_time,selected,rootAge=None):
-# selected is a list of nodes; it MUST be sorted in postorder 
-    # add the root of tree to selected
-    #selected.append(tree.seed_node)
+def date_by_RTT(tree,sampling_time,rootAge=None,epsilon_t=EPSILON_t):
+    # preprocessing
+    for node in tree.postorder_node_iter():
+        node.as_leaf = False
+        if node.is_leaf():
+            node.time = sampling_time[node.taxon.label]
+        else:
+            node.time = None
+    t0 = rootAge if rootAge is not None else compute_date_as_root(tree.seed_node)          
     
+    if t0 is None:
+        t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
+        t0 = t_min - epsilon_t
+    
+    preprocess_node(tree.seed_node)
+
+    tree.seed_node.time = t0
+    date_from_root_and_leaves(tree.seed_node)
+        
+    x = compute_mu_from_dated_tree(tree)     
+    return x,t0
+
+
+def date_as_selected(tree,sampling_time,selected,rootAge=None,epsilon_t=EPSILON_t):
+# selected is a list of nodes; they MUST be sorted in postorder
+# each node in tree must have fixed_age attribute and at least two of them MUST NOT be None
     # refresh initial values
     preprocess_tree(tree,sampling_time)
 
@@ -76,26 +98,37 @@ def date_as_selected(tree,sampling_time,selected,rootAge=None):
             date_from_root_and_leaves(node)
             node.as_leaf = True
     
-    if t0 is None:
-        epsilon_t = 1e-3
-        t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
-        t0 = t_min - epsilon_t
+    t_min = min(node.time for node in tree.preorder_node_iter() if node.time is not None)
+    t0 = t_min - epsilon_t
     
     preprocess_node(tree.seed_node)
 
     tree.seed_node.time = t0
     date_from_root_and_leaves(tree.seed_node)
         
-    mu = compute_mu_from_dated_tree(tree)     
-    return mu
+    x = compute_mu_from_dated_tree(tree)     
+    return x,t0
 
 def preprocess_tree(tree,sampling_time):
+# all nodes in tree must have 'fixed_age' attribute and at least two of them MUST NOT be None
+# the sampling_time is not needed in this updated version, but is kept to be consistent with 
+# the (obsolete) downstream codes that use this function   
    for node in tree.postorder_node_iter():
-       node.as_leaf = False
-       if node.is_leaf():
-           node.time = sampling_time[node.taxon.label]
-       else:
-           node.time = None
+       node.time = node.fixed_age
+       node.as_leaf = (node is not tree.seed_node and node.fixed_age is not None and node.parent_node.fixed_age is None)
+       
+def initial_fix_age(tree):
+# heuristically compute the time of the nodes below fixed-age nodes    
+# and fix their ages to this heuristic (not a great idea...)    
+   for node in tree.postorder_node_iter():
+       node.time = node.fixed_age
+       if node.time is not None:
+           preprocess_node(node)
+           date_from_root_and_leaves(node)     
+           node.as_leaf = True 
+    
+   for node in tree.postorder_node_iter():
+       node.fixed_age = node.time
 
 def preprocess_node(a_node):
     #print("Current node: " + a_node.label)
@@ -123,34 +156,6 @@ def preprocess_node(a_node):
            stack.append((node,True))
            stack += [(x,False) for x in node.child_node_iter()]
 
-def preprocess_node_temp(a_node):
-    #print("Current node: " + a_node.label)
-    p = a_node.parent_node
-    el = a_node.edge_length
-    tree = Tree(seed_node = a_node)        
-    
-    for node in tree.postorder_node_iter():
-       if node.is_leaf() or node.as_leaf:
-           node.nearest_leaf = node
-           node.nearest_t = node.time
-           node.delta_b = node.edge_length
-           lb = node.taxon.label if node.is_leaf() else node.label
-           #print(lb)
-       else:
-           node.time = None
-           min_t = None
-           min_child = None
-           for c in node.child_node_iter():
-                if min_t is None or c.nearest_t < min_t or (c.nearest_t == min_t and c.delta_b < min_child.delta_b): 
-                    min_t = c.nearest_t
-                    min_child = c
-           node.nearest_leaf = min_child.nearest_leaf
-           node.nearest_t = min_child.nearest_t
-           node.delta_b = min_child.delta_b + node.edge_length
-
-    if p is not None:
-        p.add_child(a_node)
-        a_node.edge_length = el
 
 def compute_date_as_root(a_node,t0=None):
     SD = 0

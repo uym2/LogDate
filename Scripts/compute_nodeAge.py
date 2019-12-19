@@ -17,7 +17,7 @@ tree = Tree.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 n = 0
 smplt = {}
-EPSILON = 10**-3
+EPSILON = 1e-3
 ages = {}
 root_age = None
 
@@ -28,7 +28,7 @@ with open(sampling_time,'r') as fin:
         assert taxon not in smplt, "repeat sampling time for taxon " + taxon
         smplt[taxon] = float(time)
 
-assert len(list(tree.leaf_node_iter())) == n, "number of taxa and sampling times do not match!"
+#assert len(list(tree.leaf_node_iter())) == n, "number of taxa and sampling times do not match!"
 
 for node in tree.postorder_node_iter():
     if node.is_leaf():
