@@ -32,7 +32,7 @@ parser.add_argument("-s","--rseed",required=False,help="Random seed to generate 
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
 parser.add_argument("-m","--maxIter",required=False,help="The maximum number of iterations for optimization. Default: 50000")
 parser.add_argument("-q","--scale",required=False,help="Scaling strategy. Either None, sqrt, or linear. Default: None")
-parser.add_argument("-u","--addpseudo",required=False,help="Add pseudo counting for per-branch weighting.Default: 0")
+parser.add_argument("-u","--addpseudo",required=False,help="Add pseudo counting for per-branch weighting.Default: 0.01")
 
 args = vars(parser.parse_args())
 
