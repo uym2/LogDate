@@ -27,6 +27,7 @@ parser.add_argument("-f","--leafAge",required=False,help="Leaf age. To be used w
 parser.add_argument("-o","--output",required=True,help="The output trees with branch lengths in time unit.")
 #parser.add_argument("-d","--tempdir",required=False,help="The output from lsd will be kept in the specified directory")
 #parser.add_argument("-e","--pseudo",action='store_true',help="Can only be used with wLogDate. Control pseudo-count branches. Default: NO")
+parser.add_argument("-v","--verbose",action='store_true',help="Show verbose message. Default: NO")
 parser.add_argument("-p","--rep",required=False,help="The number of random replicates for initialization. Default: use 1 initial point")
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
@@ -53,6 +54,7 @@ zero_len = float(args["zero"]) if args["zero"] else 1e-10
 brScale = None
 f_obj = f_logDate if args["obj"] == "LogDate" else f_logDate_sqrt_b
 objective = "wLogDate" if args["obj"] is None else args["obj"]
+verbose = args["verbose"]
 
 for node in tree.postorder_node_iter():
     if node is not tree.seed_node and node.edge_length == 0:
@@ -104,7 +106,7 @@ else:
     else:
         mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,scale=scale,pseudo=pseudo,seqLen=seqLen)'''
 
-mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen)
+mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
 tree_as_newick(t_tree,outfile=args["output"],append=False)
 
 #t_tree_swift = treeswift.read_tree_dendropy(t_tree)
