@@ -1,3 +1,5 @@
+*  Version 1.3.1:
+    * Zero-length option 
 *  Version 1.3.0:
 	* Pseudo-count in wLogDate weighting 
 * Version 1.2.0:
