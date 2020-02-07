@@ -12,7 +12,7 @@ from logdate.init_lib import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
-import cvxpy as cp
+#import cvxpy as cp
 import dendropy
 from logdate.tree_lib import tree_as_newick
 
