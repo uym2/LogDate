@@ -1,4 +1,0 @@
-# BEAST v1.8.2, r6692
-# Generated Mon May 27 22:42:24 PDT 2019 [seed=1559022143963]
-state	posterior	prior	likelihood	treeModel.rootHeight	constant.popSize	kappa	frequencies1	frequencies2	frequencies3	frequencies4	alpha	treeLikelihood
-0	-30188.631204681526	-8.778863039612556	-30179.852341641912	0.26678243452133	740.0	2.0	0.2500000001	0.2499999999	0.2500000001	0.2499999999	0.5	-30179.852341641912
