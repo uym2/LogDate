@@ -15,6 +15,7 @@ from scipy.sparse import csr_matrix
 #import cvxpy as cp
 import dendropy
 from logdate.tree_lib import tree_as_newick
+from sys import stdout
 
 MAX_ITER = 50000
 MIN_NU = 1e-12
@@ -314,6 +315,22 @@ def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=Non
    
     return x_opt[-1],f_opt,x_opt,s_tree,t_tree
     
+def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=None,min_nleaf=3,fout=stdout):
+    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
+    
+    for node in tree.preorder_node_iter():
+        if node.is_leaf():
+            node.fixed_age = smpl_times[node.taxon.label]
+        else:    
+            node.fixed_age = None
+    
+    setup_constraint(tree,smpl_times,root_age=root_age)
+    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    print("Finished initialization with random seed " + str(seed))
+    
+    for x in X:
+        s_tree,t_tree = scale_tree(tree,x)
+        fout.write(t_tree.as_string("newick"))
     
 
 def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
