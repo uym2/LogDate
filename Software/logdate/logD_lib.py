@@ -12,7 +12,7 @@ from logdate.init_lib import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
-import cvxpy as cp
+#import cvxpy as cp
 import dendropy
 from logdate.tree_lib import tree_as_newick
 
@@ -201,7 +201,7 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000):
+def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
 
@@ -227,7 +227,7 @@ def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITE
     print("fx = " + str(f(x_init,args)))
     print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x_init))))
     
-    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3 if verbose else 1,'maxiter':maxIter},jac=g,hess=h)
    
     if scale is None:
         x_opt = result.x
@@ -316,7 +316,7 @@ def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=Non
     
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000):
+def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
@@ -335,7 +335,7 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
 
     for i,x0 in enumerate(X):
         x0 = X[i]
-        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen)
+        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
         print("Found local optimal for Initial point " + str(i+1))
         n_succeed += 1                
         
