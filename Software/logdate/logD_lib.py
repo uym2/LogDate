@@ -159,6 +159,65 @@ def f_logDate_log_b(pseudo=0,seqLen=1000):
     return f,g,h    
 
 def setup_constraint(tree,smpl_times,root_age=None,scale=None):
+# NOTE: root_age is not used here but is kept to be consistent with the downstream functions. Will have to remove it eventually, though!
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
+    cons_eq = []
+    
+    idx = 0
+    b = [1.]*N
+   
+    for node in tree.postorder_node_iter():
+        node.idx = idx
+        idx += 1
+        new_constraint = None        
+        lb = node.taxon.label if node.is_leaf() else node.label
+        if lb in smpl_times:
+            node.height = 0
+            new_constraint = [0.0]*(N+1)
+            new_constraint[N] = -smpl_times[lb]            
+        
+        if not node.is_leaf():
+            c1,c2 = list(node.child_node_iter()) # assuming each internal node has exactly two children
+            f0 = lb in smpl_times
+            f1 = c1.constraint is not None
+            f2 = c2.constraint is not None
+
+            if f1 and f2:
+                if not f0:
+                    node.height = min(c1.height,c2.height) + 1
+                    new_constraint = c1.constraint if c1.height < c2.height else c2.constraint
+                    a = [ (c1.constraint[i] - c2.constraint[i]) for i in range(N+1) ]
+                    cons_eq.append(a)
+                else:    
+                    a1 = c1.constraint[:-1] + [smpl_times[lb]+c1.constraint[-1]]
+                    a2 = c2.constraint[:-1] + [smpl_times[lb]+c2.constraint[-1]] 
+                    cons_eq.append(a1)
+                    cons_eq.append(a2)
+            elif f1:
+                if not f0:
+                    node.height = c1.height
+                    new_constraint = c1.constraint
+                else:    
+                    a1 = c1.constraint[:-1] + [smpl_times[lb]+c1.constraint[-1]]
+                    cons_eq.append(a1)
+            elif f2:
+                if not f0:
+                    node.height = c2.height
+                    new_constraint = c2.constraint        
+                else:        
+                    a2 = c2.constraint[:-1] + [smpl_times[lb]+c2.constraint[-1]] 
+                    cons_eq.append(a2)   
+            
+        if new_constraint is not None:    
+            node.constraint = new_constraint
+        if node is not tree.seed_node:    
+            node.constraint[node.idx] = node.edge_length
+            b[node.idx] = node.edge_length
+    
+    return cons_eq,b
+
+def setup_constraint_old(tree,smpl_times,root_age=None,scale=None):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
     cons_eq = []
@@ -182,7 +241,7 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
             b[node.idx] = node.edge_length
         else:
             children = list(node.child_node_iter())           
-            node.height = min(children[0].height,children[1].height)
+            node.height = min(children[0].height,children[1].height) + 1
             a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
             cons_eq.append(a)
 
@@ -196,7 +255,7 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
                     node.constraint[node.idx] = 1 
                 b[node.idx] = node.edge_length
             elif root_age is not None:
-                a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
+                a = children[0].constraint[:-1] + [children[0].constraint[-1]+root_age]
                 cons_eq.append(a)    
 
     return cons_eq,b
@@ -246,15 +305,16 @@ def setup_smpl_time(tree,sampling_time=None,root_age=None,leaf_age=None):
     smpl_times = {}
     
     if sampling_time is None:
-        if leaf_age is None:
-            leaf_age = 1
+        #if leaf_age is None:
+        #    leaf_age = 1
         for node in tree.leaf_node_iter():
             smpl_times[node.taxon.label] = leaf_age
-        if root_age is None:
-            root_age = 0    
+        #if root_age is None:
+        #    root_age = 0
+        smpl_times[tree.seed_node.label] = root_age    
     else:        
         with open(sampling_time,"r") as fin:
-            fin.readline()
+            #fin.readline()
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
@@ -337,10 +397,12 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
-        if node.is_leaf():
-            node.fixed_age = smpl_times[node.taxon.label]
-        else:    
-            node.fixed_age = None
+        lb = node.taxon.label if node.is_leaf() else node.label
+        node.fixed_age = smpl_times[lb] if lb in smpl_times else None
+        #if node.is_leaf():
+        #    node.fixed_age = smpl_times[node.taxon.label]
+        #else:    
+        #    node.fixed_age = None
     
     X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
     print("Finished initialization with random seed " + str(seed))

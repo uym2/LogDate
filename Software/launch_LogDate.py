@@ -42,7 +42,11 @@ tree = Tree.get_from_path(args["input"],'newick',preserve_underscores=True)
 sampling_time = args["samplingTime"]
 rootAge = float(args["rootAge"]) if args["rootAge"] else None
 leafAge = float(args["leafAge"]) if args["leafAge"] else None
-#lsdDir = args["tempdir"] if args["tempdir"] else None
+
+if sampling_time is None and rootAge is None and leafAge is None:
+    rootAge = 0
+    leafAge = 1
+
 nrep = int(args["rep"]) if args["rep"] else 1
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
 pseudo = 0 if args["addpseudo"] is None else float(args["addpseudo"])
