@@ -1,3 +1,5 @@
+*  Version 1.3.1:
+    * Added zero-length and verbose option. Remove options for LSD and LF. Remove options for scaling. Remove cvxpy requirement.  
 *  Version 1.3.0:
 	* Pseudo-count in wLogDate weighting 
 * Version 1.2.0:

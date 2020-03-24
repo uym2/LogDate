@@ -12,8 +12,10 @@ from logdate.init_lib import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
-import treeswift
-import cvxpy as cp
+#import cvxpy as cp
+import dendropy
+from logdate.tree_lib import tree_as_newick
+from sys import stdout
 
 MAX_ITER = 50000
 MIN_NU = 1e-12
@@ -200,7 +202,7 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000):
+def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
 
@@ -226,7 +228,7 @@ def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITE
     print("fx = " + str(f(x_init,args)))
     print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x_init))))
     
-    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
+    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3 if verbose else 1,'maxiter':maxIter},jac=g,hess=h)
    
     if scale is None:
         x_opt = result.x
@@ -313,9 +315,25 @@ def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=Non
    
     return x_opt[-1],f_opt,x_opt,s_tree,t_tree
     
+def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=None,min_nleaf=3,fout=stdout):
+    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
+    
+    for node in tree.preorder_node_iter():
+        if node.is_leaf():
+            node.fixed_age = smpl_times[node.taxon.label]
+        else:    
+            node.fixed_age = None
+    
+    setup_constraint(tree,smpl_times,root_age=root_age)
+    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    print("Finished initialization with random seed " + str(seed))
+    
+    for x in X:
+        s_tree,t_tree = scale_tree(tree,x)
+        fout.write(t_tree.as_string("newick"))
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000):
+def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
@@ -334,7 +352,7 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
 
     for i,x0 in enumerate(X):
         x0 = X[i]
-        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen)
+        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
         print("Found local optimal for Initial point " + str(i+1))
         n_succeed += 1                
         
@@ -382,10 +400,7 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,
 def run_lsd(tree,sampling_time,outputDir=None):
     wdir = outputDir if outputDir is not None else mkdtemp()
     treefile = normpath(join(wdir,"mytree.tre"))
-    print(treefile)
-    tree_swift = treeswift.read_tree_dendropy(tree)
-    #tree.write_to_path(treefile,"newick")
-    tree_swift.write_tree_newick(treefile)
+    tree_as_newick(tree,outfile=treefile,append=False)
     call([lsd_exec,"-i",treefile,"-d",sampling_time,"-v","-c"])
     return wdir
         
