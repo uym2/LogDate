@@ -51,11 +51,14 @@ def estimate_coef(x, y):
 treefile = argv[1]  
 timefile = argv[2]
 
-tree = Tree.get_from_path(treefile,"newick")
 smpl_time = {}
 with open(timefile,'r') as fin:
     for line in fin:
         name,time = line.strip().split()
         smpl_time[name] = float(time)
-t0,mu = run_RTT(tree,smpl_time)
-print(t0,mu)
+
+with open(treefile,'r') as fin:
+    for line in fin:
+        tree = Tree.get(data=line,schema="newick",preserve_underscores=True)
+        t0,mu = run_RTT(tree,smpl_time)
+        print(t0,mu)

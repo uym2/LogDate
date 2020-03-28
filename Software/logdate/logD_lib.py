@@ -162,14 +162,18 @@ def f_logDate_log_b(pseudo=0,seqLen=1000):
 
 def setup_constraint(tree,smpl_times,root_age=None,scale=None):
 # NOTE: root_age is not used here but is kept to be consistent with the downstream functions. Will have to remove it eventually, though!
-    n = len(list(tree.leaf_node_iter()))
-    N = 2*n-2
+    #n = len(list(tree.leaf_node_iter()))
+    active_set = [node for node in tree.postorder_node_iter() if node.is_active]
+    #n = len([node for node in active_set if node.as_leaf])
+    #N = 2*n-2
+    N = len(active_set)-1
     cons_eq = []
     
     idx = 0
     b = [1.]*N
    
-    for node in tree.postorder_node_iter():
+    #for node in tree.postorder_node_iter():
+    for node in active_set:
         node.idx = idx
         idx += 1
         new_constraint = None        
@@ -179,11 +183,19 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
             new_constraint = [0.0]*(N+1)
             new_constraint[N] = -smpl_times[lb]            
         
-        if not node.is_leaf():
-            c1,c2 = list(node.child_node_iter()) # assuming each internal node has exactly two children
+        #if not node.is_leaf():
+        if not node.as_leaf:
+            C = [ c for c in node.child_node_iter() if c.is_active ]
+            if len(C) == 1:
+                c1 = C[0]
+                c2 = None
+            else:
+                # assumming each node must have at most two children
+                c1,c2 = C
+            #c1,c2 = list([ c for c in node.child_node_iter()) # assuming each internal node has exactly two children
             f0 = lb in smpl_times
             f1 = c1.constraint is not None
-            f2 = c2.constraint is not None
+            f2 = c2 is not None and c2.constraint is not None
 
             if f1 and f2:
                 if not f0:
@@ -263,8 +275,9 @@ def setup_constraint_old(tree,smpl_times,root_age=None,scale=None):
 
     
 def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
-    n = len(list(tree.leaf_node_iter()))
-    N = 2*n-2
+    #n = len(list(tree.leaf_node_iter()))
+    #N = 2*n-2
+    N = len([node for node in tree.postorder_node_iter() if node.is_active])-1
 
     cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age,scale=scale)
 
@@ -287,6 +300,7 @@ def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITE
     print("mu = " + str(x_init[-1]))
     print("fx = " + str(f(x_init,args)))
     print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x_init))))
+   
     
     result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3 if verbose else 1,'maxiter':maxIter},jac=g,hess=h)
    
@@ -605,17 +619,15 @@ def scale_tree(tree,x):
     mu = x[-1]
 
     for node in tree.postorder_node_iter():
-        if node is not tree.seed_node:
+        if node is not tree.seed_node and node.is_active:
             key = node.bipartition    
             mapping[key] = node.idx
 
-    count = 0
     for node in s_tree.postorder_node_iter():
         if node is not s_tree.seed_node:
             if node.bipartition in mapping:
                 idx = mapping[node.bipartition]
                 node.edge_length *= x[idx]
-                count += 1
 
     t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
     
