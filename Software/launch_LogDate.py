@@ -4,8 +4,6 @@ import logdate
 from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init,logDate_with_penalize_llh
 from logdate.logD_lib import f_LF,f_lsd,f_PL,run_LF_cvxpy,f_wlogDate_linear_scale
 from logdate.logD_lib import f_wlogDate_sqrt_scale, f_logDate_sqrt_scale, f_logDate_sqrt_b, f_logDate
-from logdate.logD_CI_lib import logCI_with_lsd
-from logdate.logD_extend_lib import write_time_tree,log_from_random_init
 from dendropy import Tree
 import dendropy
 #import treeswift

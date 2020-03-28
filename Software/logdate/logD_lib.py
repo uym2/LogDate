@@ -8,7 +8,8 @@ from tempfile import mkdtemp
 from shutil import copyfile, rmtree
 from os import remove
 from copy import deepcopy
-from logdate.init_lib import random_date_init
+from logdate.fixed_init_lib import random_date_init
+#from logdate.init_lib_old import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
@@ -20,6 +21,7 @@ from sys import stdout
 MAX_ITER = 50000
 MIN_NU = 1e-12
 MIN_MU = 1e-5
+EPSILON_t = 1e-5
 
 
 #lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
@@ -209,9 +211,8 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
                     a2 = c2.constraint[:-1] + [smpl_times[lb]+c2.constraint[-1]] 
                     cons_eq.append(a2)   
             
-        if new_constraint is not None:    
-            node.constraint = new_constraint
-        if node is not tree.seed_node:    
+        node.constraint = new_constraint
+        if node is not tree.seed_node and node.constraint is not None:    
             node.constraint[node.idx] = node.edge_length
             b[node.idx] = node.edge_length
     
@@ -404,7 +405,8 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
         #else:    
         #    node.fixed_age = None
     
-    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    #X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
+    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
@@ -422,6 +424,7 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
             f_min = f
             x_best = x
             s_tree,t_tree = scale_tree(tree,x_best)
+            compute_divergence_time(t_tree,smpl_times)
             print("Found a better log-scored configuration")
             print("New mutation rate: " + str(x_best[-1]))
             print("New log score: " + str(f_min))
@@ -620,4 +623,57 @@ def scale_tree(tree,x):
         if node is not t_tree.seed_node:
             node.edge_length /= mu
 
-    return s_tree,t_tree        
+    return s_tree,t_tree    
+    
+def compute_divergence_time(tree,sampling_time):
+# compute and place the divergence time onto the node label of the tree
+# must have at least one sampling time. Assumming the tree branches have been
+# converted to time unit and are consistent with the given sampling_time
+    calibrated = []
+    for node in tree.postorder_node_iter():
+        node.time = None
+        lb = node.taxon.label if node.is_leaf() else node.label
+        if lb in sampling_time:
+            node.time = sampling_time[lb]
+            calibrated.append(node)
+
+    stk = []
+    # push to stk all the uncalibrated nodes that are linked to (i.e. is parent or child of) any node in the calibrated list
+    for node in calibrated:
+        p = node.parent_node
+        if p is not None and p.time is None:
+            stk.append(p)
+        if not node.is_leaf():
+            stk += [ c for c in node.child_node_iter() if c.time is None ]            
+    
+    # compute divergence time of the remaining nodes
+    while stk:
+        node = stk.pop()
+        lb = node.taxon.label if node.is_leaf() else node.label
+        p = node.parent_node
+        t = None
+        if p is not None:
+            if p.time is not None:
+                t = p.time + node.edge_length
+            else:
+                stk.append(p)    
+        for c in node.child_node_iter():
+            if c.time is not None:
+                t1 = c.time - c.edge_length
+                t = t1 if t is None else t
+                assert abs(t-t1) < EPSILON_t, "Inconsistent divergence time computed for node " + lb
+            else:
+                stk.append(c)
+        node.time = t
+                
+        
+    # place the divergence time onto the label
+    for node in tree.postorder_node_iter():                
+        lb = node.taxon.label if node.is_leaf() else node.label
+        assert node.time is not None, "Failed to compute divergence time for node " + lb 
+        lb += "=" + str(node.time)
+        if node.is_leaf():
+            node.taxon.label = lb
+        else:
+            node.label = lb    
+                            
