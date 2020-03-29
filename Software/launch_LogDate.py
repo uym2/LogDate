@@ -47,7 +47,7 @@ if sampling_time is None and rootAge is None and leafAge is None:
 
 nrep = int(args["rep"]) if args["rep"] else 1
 seqLen = int(args["seqLen"]) if args["seqLen"] else 1000
-pseudo = 0 if args["addpseudo"] is None else float(args["addpseudo"])
+pseudo = 0.01 if args["addpseudo"] is None else float(args["addpseudo"])
 maxIter = int(args["maxIter"]) if args["maxIter"] else 50000
 randseed = int(args["rseed"]) if args["rseed"] else None
 #scale = args["scale"] if args["scale"] else None
@@ -108,7 +108,7 @@ else:
     else:
         mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,scale=scale,pseudo=pseudo,seqLen=seqLen)'''
 
-mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=3,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
 tree_as_newick(t_tree,outfile=args["output"],append=False)
 
 #t_tree_swift = treeswift.read_tree_dendropy(t_tree)
