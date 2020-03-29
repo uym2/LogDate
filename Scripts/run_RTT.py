@@ -25,8 +25,9 @@ def run_RTT(tree,sampling_time):
         b.append(b_map[x])
         t.append(sampling_time[x])
 
-    t0,mu = estimate_coef(np.array(t),np.array(b))
-    t0 /= mu
+    b0,b1 = estimate_coef(np.array(t),np.array(b))
+    mu = b1
+    t0 = -b0/mu
 
     return t0,mu
 
