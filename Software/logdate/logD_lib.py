@@ -274,12 +274,13 @@ def setup_constraint_old(tree,smpl_times,root_age=None,scale=None):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
+#def logIt(tree,smpl_times,f_obj,scale=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
+def logIt(tree,f_obj,cons_eq,b,scale=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
     #n = len(list(tree.leaf_node_iter()))
     #N = 2*n-2
+    #cons_eq,b = setup_constraint(tree,smpl_times,scale=scale)
+    
     N = len([node for node in tree.postorder_node_iter() if node.is_active])-1
-
-    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age,scale=scale)
 
     if scale is None:
         bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
@@ -411,9 +412,9 @@ def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=Non
 def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
-    for node in tree.preorder_node_iter():
-        lb = node.taxon.label if node.is_leaf() else node.label
-        node.fixed_age = smpl_times[lb] if lb in smpl_times else None
+    #for node in tree.preorder_node_iter():
+    #    lb = node.taxon.label if node.is_leaf() else node.label
+    #    node.fixed_age = smpl_times[lb] if lb in smpl_times else None
         #if node.is_leaf():
         #    node.fixed_age = smpl_times[node.taxon.label]
         #else:    
@@ -427,10 +428,13 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
 
     i = 0
     n_succeed = 0
+    
+    cons_eq,b = setup_constraint(tree,smpl_times,scale=scale)
 
     for i,x0 in enumerate(X):
         x0 = X[i]
-        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+        #_,f,x = logIt(tree,smpl_times,f_obj,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+        _,f,x = logIt(tree,f_obj,cons_eq,b,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
         print("Found local optimal for Initial point " + str(i+1))
         n_succeed += 1                
         
@@ -629,7 +633,8 @@ def scale_tree(tree,x):
                 idx = mapping[node.bipartition]
                 node.edge_length *= x[idx]
 
-    t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
+    #t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
+    t_tree = Tree.get(data=s_tree.as_string("newick"),schema="newick",rooting="force-rooted")
     
     for node in t_tree.postorder_node_iter():
         if node is not t_tree.seed_node:
