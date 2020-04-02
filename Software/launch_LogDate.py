@@ -60,7 +60,7 @@ brScale = None
 verbose = args["verbose"]
 weight = args["weight"] if args["weight"] else "sqrt"
 
-fw = {"sqrt":fw_sqrt,"identity":fw_identity,"none":fw_none,"square":fw_square,"fw_log":fw_log,"logsqrt":fw_logsqrt}
+fw = {"sqrt":fw_sqrt,"identity":fw_identity,"none":fw_none,"square":fw_square,"log":fw_log,"logsqrt":fw_logsqrt}
 f_obj = f_logDate_master
 
 for node in tree.postorder_node_iter():
