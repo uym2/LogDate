@@ -3,7 +3,8 @@
 import logdate
 from logdate.logD_lib import calibrate_log_opt, read_lsd_results, logDate_with_lsd, logDate_with_random_init,logDate_with_penalize_llh
 from logdate.logD_lib import f_LF,f_lsd,f_PL,run_LF_cvxpy,f_wlogDate_linear_scale
-from logdate.logD_lib import f_wlogDate_sqrt_scale, f_logDate_sqrt_scale, f_logDate_sqrt_b, f_logDate
+from logdate.logD_lib import f_wlogDate_sqrt_scale, f_logDate_sqrt_scale, f_logDate_sqrt_b, f_logDate,f_logDate_master
+from logdate.logD_lib import fw_sqrt,fw_identity,fw_none,fw_square,fw_log,fw_logsqrt
 from logdate.logD_CI_lib import logCI_with_lsd
 from logdate.logD_extend_lib import write_time_tree,log_from_random_init
 from dendropy import Tree
@@ -20,7 +21,7 @@ print(" ".join(argv))
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-i","--input",required=True,help="Input tree")
-parser.add_argument("-j","--obj",required=False,help="Objective function. Either LogDate or wLogDate. Default: wLogDate")
+#parser.add_argument("-j","--obj",required=False,help="Objective function. Either LogDate or wLogDate. Default: wLogDate")
 parser.add_argument("-t","--samplingTime",required=False,help="Sampling time at leaf nodes. Default: None")
 parser.add_argument("-r","--rootAge",required=False,help="Root age. Can be used with either -f or -t, but not both. Default: None if -t is specified else 0")
 parser.add_argument("-f","--leafAge",required=False,help="Leaf age. To be used with root age to infer relative time. Will be overried by -t if -t is specified. Default: None if -t is specified else 1.")
@@ -34,6 +35,7 @@ parser.add_argument("-l","--seqLen",required=False,help="The length of the seque
 parser.add_argument("-m","--maxIter",required=False,help="The maximum number of iterations for optimization. Default: 50000")
 #parser.add_argument("-q","--scale",required=False,help="Scaling strategy. Either None, sqrt, or linear. Default: None")
 parser.add_argument("-u","--addpseudo",required=False,help="Add pseudo counting for per-branch weighting.Default: 0.01")
+parser.add_argument("-w","--weight",required=False,help="Weighting scheme for per-branch. Can be none,identity,sqrt,square,log,or logsqrt. Default: sqrt")
 parser.add_argument("-z","--zero",required=False,help="Set zero-length branches (if any) to this number. LogDate cannot process zero-length branches. Default: 1e-10")
 
 args = vars(parser.parse_args())
@@ -52,9 +54,14 @@ randseed = int(args["rseed"]) if args["rseed"] else None
 zero_len = float(args["zero"]) if args["zero"] else 1e-10
 
 brScale = None
-f_obj = f_logDate if args["obj"] == "LogDate" else f_logDate_sqrt_b
-objective = "wLogDate" if args["obj"] is None else args["obj"]
+#f_obj = f_logDate if args["obj"] == "LogDate" else f_logDate_sqrt_b
+#f_obj = f_logDate if args["obj"] == "LogDate" else f_logDate_master
+#objective = "wLogDate" if args["obj"] is None else args["obj"]
 verbose = args["verbose"]
+weight = args["weight"] if args["weight"] else "sqrt"
+
+fw = {"sqrt":fw_sqrt,"identity":fw_identity,"none":fw_none,"square":fw_square,"fw_log":fw_log,"logsqrt":fw_logsqrt}
+f_obj = f_logDate_master
 
 for node in tree.postorder_node_iter():
     if node is not tree.seed_node and node.edge_length == 0:
@@ -106,7 +113,7 @@ else:
     else:
         mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,scale=scale,pseudo=pseudo,seqLen=seqLen)'''
 
-mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time=sampling_time,root_age=rootAge,leaf_age=leafAge,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose,fw=fw[weight])
 tree_as_newick(t_tree,outfile=args["output"],append=False)
 
 #t_tree_swift = treeswift.read_tree_dendropy(t_tree)

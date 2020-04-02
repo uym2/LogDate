@@ -145,6 +145,37 @@ def f_logDate_sqrt_b(pseudo=0,seqLen=1000):
 
     return f,g,h
 
+def fw_sqrt(x):
+    return sqrt(x)
+
+def fw_identity(x):
+    return x
+
+def fw_none(x):
+    return 1
+
+def fw_square(x):
+    return x*x
+    
+def fw_log(x):
+    return log(1+x)
+    
+def fw_logsqrt(x):
+    return log(1+sqrt(x))            
+
+
+def f_logDate_master(pseudo=0,seqLen=1000,fw=fw_identity):
+    def f(x,*args):
+        return sum([fw(b+pseudo/seqLen)*log(abs(y))**2 for (y,b) in zip(x[:-1],args[0])])
+
+    def g(x,*args):
+        return np.array([2*fw(b+pseudo/seqLen)*log(abs(z))/z for (z,b) in zip(x[:-1],args[0])] + [0])
+
+    def h(x,*args):
+        return diags([fw(b+pseudo/seqLen)*(2-2*log(abs(y)))/y**2 for (y,b) in zip(x[:-1],args[0])]+[0])	
+
+    return f,g,h
+
 
 def f_logDate_log_b(pseudo=0,seqLen=1000):
     def f(x,*args):
@@ -202,7 +233,7 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
     return cons_eq,b
 
     
-def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
+def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False,fw=fw_sqrt):
     n = len(list(tree.leaf_node_iter()))
     N = 2*n-2
 
@@ -221,7 +252,7 @@ def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITE
     args = (b)
     linear_constraint = LinearConstraint(csr_matrix(cons_eq),[0]*len(cons_eq),[0]*len(cons_eq),keep_feasible=False)
 
-    f,g,h = f_obj(pseudo=pseudo,seqLen=seqLen)
+    f,g,h = f_obj(pseudo=pseudo,seqLen=seqLen,fw=fw)
     
     print("Initial state:" )
     print("mu = " + str(x_init[-1]))
@@ -333,7 +364,7 @@ def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=Non
         fout.write(t_tree.as_string("newick"))
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
+def logDate_with_random_init(tree,f_obj,fw=fw_sqrt,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
@@ -352,7 +383,7 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
 
     for i,x0 in enumerate(X):
         x0 = X[i]
-        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+        _,f,x = logIt(tree,smpl_times,f_obj,fw=fw,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
         print("Found local optimal for Initial point " + str(i+1))
         n_succeed += 1                
         
