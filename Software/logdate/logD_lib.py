@@ -441,9 +441,9 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_ag
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
-            print(x_best)
+            #print(x_best)
             s_tree,t_tree = scale_tree(tree,x_best)
-            #compute_divergence_time(t_tree,smpl_times)
+            compute_divergence_time(t_tree,smpl_times)
             print("Found a better log-scored configuration")
             print("New mutation rate: " + str(x_best[-1]))
             print("New log score: " + str(f_min))
