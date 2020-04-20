@@ -8,20 +8,16 @@ from tempfile import mkdtemp
 from shutil import copyfile, rmtree
 from os import remove
 from copy import deepcopy
-from logdate.fixed_init_lib import random_date_init
-#from logdate.init_lib_old import random_date_init
+from logdate.init_lib import random_date_init
 import platform
 from scipy.sparse import diags
 from scipy.sparse import csr_matrix
-#import cvxpy as cp
-import dendropy
-from logdate.tree_lib import tree_as_newick
-from sys import stdout
+import treeswift
+import cvxpy as cp
 
 MAX_ITER = 50000
 MIN_NU = 1e-12
 MIN_MU = 1e-5
-EPSILON_t = 1e-5
 
 
 #lsd_file = "../lsd-0.2/bin/lsd.exe" if platform.system() == "Linux" else "../lsd-0.2/src/lsd"
@@ -160,20 +156,16 @@ def f_logDate_log_b(pseudo=0,seqLen=1000):
 
     return f,g,h    
 
+
 def setup_constraint(tree,smpl_times,root_age=None,scale=None):
-# NOTE: root_age is not used here but is kept to be consistent with the downstream functions. Will have to remove it eventually, though!
-    #n = len(list(tree.leaf_node_iter()))
-    active_set = [node for node in tree.postorder_node_iter() if node.is_active]
-    #n = len([node for node in active_set if node.as_leaf])
-    #N = 2*n-2
-    N = len(active_set)-1
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
     cons_eq = []
     
     idx = 0
     b = [1.]*N
    
-    #for node in tree.postorder_node_iter():
-    for node in active_set:
+    for node in tree.postorder_node_iter():
         node.idx = idx
         idx += 1
         new_constraint = None        
@@ -183,19 +175,11 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
             new_constraint = [0.0]*(N+1)
             new_constraint[N] = -smpl_times[lb]            
         
-        #if not node.is_leaf():
-        if not node.as_leaf:
-            C = [ c for c in node.child_node_iter() if c.is_active ]
-            if len(C) == 1:
-                c1 = C[0]
-                c2 = None
-            else:
-                # assumming each node must have at most two children
-                c1,c2 = C
-            #c1,c2 = list([ c for c in node.child_node_iter()) # assuming each internal node has exactly two children
+        if not node.is_leaf():
+            c1,c2 = list(node.child_node_iter()) # assuming each internal node has exactly two children
             f0 = lb in smpl_times
             f1 = c1.constraint is not None
-            f2 = c2 is not None and c2.constraint is not None
+            f2 = c2.constraint is not None
 
             if f1 and f2:
                 if not f0:
@@ -204,8 +188,8 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
                     a = [ (c1.constraint[i] - c2.constraint[i]) for i in range(N+1) ]
                     cons_eq.append(a)
                 else:    
-                    a1 = c1.constraint[:-1] + [smpl_times[lb]+c1.constraint[-1]]
-                    a2 = c2.constraint[:-1] + [smpl_times[lb]+c2.constraint[-1]] 
+                    a1 = c1.constraint[:-1] + [-smpl_times[lb]-c1.constraint[-1]]
+                    a2 = c2.constraint[:-1] + [-smpl_times[lb]-c2.constraint[-1]] 
                     cons_eq.append(a1)
                     cons_eq.append(a2)
             elif f1:
@@ -213,22 +197,24 @@ def setup_constraint(tree,smpl_times,root_age=None,scale=None):
                     node.height = c1.height
                     new_constraint = c1.constraint
                 else:    
-                    a1 = c1.constraint[:-1] + [smpl_times[lb]+c1.constraint[-1]]
+                    a1 = c1.constraint[:-1] + [-smpl_times[lb]-c1.constraint[-1]]
                     cons_eq.append(a1)
             elif f2:
                 if not f0:
                     node.height = c2.height
                     new_constraint = c2.constraint        
                 else:        
-                    a2 = c2.constraint[:-1] + [smpl_times[lb]+c2.constraint[-1]] 
+                    a2 = c2.constraint[:-1] + [-smpl_times[lb]-c2.constraint[-1]] 
                     cons_eq.append(a2)   
             
-        node.constraint = new_constraint
-        if node is not tree.seed_node and node.constraint is not None:    
+        if new_constraint is not None:    
+            node.constraint = new_constraint
+        if node is not tree.seed_node:    
             node.constraint[node.idx] = node.edge_length
             b[node.idx] = node.edge_length
     
     return cons_eq,b
+                        
 
 def setup_constraint_old(tree,smpl_times,root_age=None,scale=None):
     n = len(list(tree.leaf_node_iter()))
@@ -254,7 +240,7 @@ def setup_constraint_old(tree,smpl_times,root_age=None,scale=None):
             b[node.idx] = node.edge_length
         else:
             children = list(node.child_node_iter())           
-            node.height = min(children[0].height,children[1].height) + 1
+            node.height = min(children[0].height,children[1].height)+1
             a = [ (children[0].constraint[i] - children[1].constraint[i]) for i in range(N+1) ]
             cons_eq.append(a)
 
@@ -268,19 +254,17 @@ def setup_constraint_old(tree,smpl_times,root_age=None,scale=None):
                     node.constraint[node.idx] = 1 
                 b[node.idx] = node.edge_length
             elif root_age is not None:
-                a = children[0].constraint[:-1] + [children[0].constraint[-1]+root_age]
+                a = children[0].constraint[:-1] + [children[0].constraint[-1]-root_age]
                 cons_eq.append(a)    
 
     return cons_eq,b
 
     
-#def logIt(tree,smpl_times,f_obj,scale=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
-def logIt(tree,f_obj,cons_eq,b,scale=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,verbose=False):
-    #n = len(list(tree.leaf_node_iter()))
-    #N = 2*n-2
-    #cons_eq,b = setup_constraint(tree,smpl_times,scale=scale)
-    
-    N = len([node for node in tree.postorder_node_iter() if node.is_active])-1
+def logIt(tree,smpl_times,f_obj,scale=None,root_age=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000):
+    n = len(list(tree.leaf_node_iter()))
+    N = 2*n-2
+
+    cons_eq,b = setup_constraint(tree,smpl_times,root_age=root_age,scale=scale)
 
     if scale is None:
         bounds = Bounds(np.array([MIN_NU]*N+[MIN_MU]),np.array([np.inf]*(N+1)),keep_feasible=False)
@@ -301,9 +285,8 @@ def logIt(tree,f_obj,cons_eq,b,scale=None,x0=None,maxIter=MAX_ITER,pseudo=0,seqL
     print("mu = " + str(x_init[-1]))
     print("fx = " + str(f(x_init,args)))
     print("Maximum constraint violation: " + str(np.max(csr_matrix(cons_eq).dot(x_init))))
-   
     
-    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3 if verbose else 1,'maxiter':maxIter},jac=g,hess=h)
+    result = minimize(fun=f,method="trust-constr",x0=x_init,bounds=bounds,args=args,constraints=[linear_constraint],options={'disp': True,'verbose':3,'maxiter':maxIter},jac=g,hess=h)
    
     if scale is None:
         x_opt = result.x
@@ -321,16 +304,15 @@ def setup_smpl_time(tree,sampling_time=None,root_age=None,leaf_age=None):
     smpl_times = {}
     
     if sampling_time is None:
-        #if leaf_age is None:
-        #    leaf_age = 1
+        if leaf_age is None:
+            leaf_age = 1
         for node in tree.leaf_node_iter():
             smpl_times[node.taxon.label] = leaf_age
-        #if root_age is None:
-        #    root_age = 0
-        smpl_times[tree.seed_node.label] = root_age    
+        if root_age is None:
+            root_age = 0    
     else:        
         with open(sampling_time,"r") as fin:
-            #fin.readline()
+            fin.readline()
             for line in fin:
                 name,time = line.split()
                 smpl_times[name] = float(time)
@@ -391,7 +373,9 @@ def logDate_with_penalize_llh(tree,sampling_time=None,root_age=None,leaf_age=Non
    
     return x_opt[-1],f_opt,x_opt,s_tree,t_tree
     
-def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=None,min_nleaf=3,fout=stdout):
+    
+
+def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000):
     smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
     
     for node in tree.preorder_node_iter():
@@ -400,50 +384,24 @@ def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=Non
         else:    
             node.fixed_age = None
     
-    setup_constraint(tree,smpl_times,root_age=root_age)
     X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
-    print("Finished initialization with random seed " + str(seed))
-    
-    for x in X:
-        s_tree,t_tree = scale_tree(tree,x)
-        fout.write(t_tree.as_string("newick"))
-    
-
-def logDate_with_random_init(tree,f_obj,sampling_time=None,root_age=None,leaf_age=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,scale=None,pseudo=0,seqLen=1000,verbose=False):
-    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,root_age=root_age,leaf_age=leaf_age)
-    
-    #for node in tree.preorder_node_iter():
-    #    lb = node.taxon.label if node.is_leaf() else node.label
-    #    node.fixed_age = smpl_times[lb] if lb in smpl_times else None
-        #if node.is_leaf():
-        #    node.fixed_age = smpl_times[node.taxon.label]
-        #else:    
-        #    node.fixed_age = None
-    
-    #X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,rootAge=root_age,seed=seed)
-    X,seed,_ = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,seed=seed)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
 
     i = 0
     n_succeed = 0
-    
-    cons_eq,b = setup_constraint(tree,smpl_times,scale=scale)
 
     for i,x0 in enumerate(X):
         x0 = X[i]
-        #_,f,x = logIt(tree,smpl_times,f_obj,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
-        _,f,x = logIt(tree,f_obj,cons_eq,b,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+        _,f,x = logIt(tree,smpl_times,f_obj,root_age=root_age,x0=x0,maxIter=maxIter,scale=scale,pseudo=pseudo,seqLen=seqLen)
         print("Found local optimal for Initial point " + str(i+1))
         n_succeed += 1                
         
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
-            print(x_best)
             s_tree,t_tree = scale_tree(tree,x_best)
-            #compute_divergence_time(t_tree,smpl_times)
             print("Found a better log-scored configuration")
             print("New mutation rate: " + str(x_best[-1]))
             print("New log score: " + str(f_min))
@@ -484,7 +442,10 @@ def logDate_with_lsd(tree,sampling_time,root_age=None,brScale=False,lsdDir=None,
 def run_lsd(tree,sampling_time,outputDir=None):
     wdir = outputDir if outputDir is not None else mkdtemp()
     treefile = normpath(join(wdir,"mytree.tre"))
-    tree_as_newick(tree,outfile=treefile,append=False)
+    print(treefile)
+    tree_swift = treeswift.read_tree_dendropy(tree)
+    #tree.write_to_path(treefile,"newick")
+    tree_swift.write_tree_newick(treefile)
     call([lsd_exec,"-i",treefile,"-d",sampling_time,"-v","-c"])
     return wdir
         
@@ -622,75 +583,24 @@ def scale_tree(tree,x):
 
     mapping = {}
     mu = x[-1]
+
     for node in tree.postorder_node_iter():
-        if node is not tree.seed_node and node.is_active:
+        if node is not tree.seed_node:
             key = node.bipartition    
             mapping[key] = node.idx
 
+    count = 0
     for node in s_tree.postorder_node_iter():
         if node is not s_tree.seed_node:
             if node.bipartition in mapping:
                 idx = mapping[node.bipartition]
                 node.edge_length *= x[idx]
+                count += 1
 
-    #t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
-    t_tree = Tree.get(data=s_tree.as_string("newick"),schema="newick",rooting="force-rooted")
+    t_tree = Tree.get(data=s_tree.as_string("newick"),taxon_namespace=taxa,schema="newick",rooting="force-rooted")
     
     for node in t_tree.postorder_node_iter():
         if node is not t_tree.seed_node:
             node.edge_length /= mu
 
-    return s_tree,t_tree    
-    
-def compute_divergence_time(tree,sampling_time):
-# compute and place the divergence time onto the node label of the tree
-# must have at least one sampling time. Assumming the tree branches have been
-# converted to time unit and are consistent with the given sampling_time
-    calibrated = []
-    for node in tree.postorder_node_iter():
-        node.time = None
-        lb = node.taxon.label if node.is_leaf() else node.label
-        if lb in sampling_time:
-            node.time = sampling_time[lb]
-            calibrated.append(node)
-
-    stk = []
-    # push to stk all the uncalibrated nodes that are linked to (i.e. is parent or child of) any node in the calibrated list
-    for node in calibrated:
-        p = node.parent_node
-        if p is not None and p.time is None:
-            stk.append(p)
-        if not node.is_leaf():
-            stk += [ c for c in node.child_node_iter() if c.time is None ]            
-    
-    # compute divergence time of the remaining nodes
-    while stk:
-        node = stk.pop()
-        lb = node.taxon.label if node.is_leaf() else node.label
-        p = node.parent_node
-        t = None
-        if p is not None:
-            if p.time is not None:
-                t = p.time + node.edge_length
-            else:
-                stk.append(p)    
-        for c in node.child_node_iter():
-            if c.time is not None:
-                t1 = c.time - c.edge_length
-                t = t1 if t is None else t
-                assert abs(t-t1) < EPSILON_t, "Inconsistent divergence time computed for node " + lb
-            else:
-                stk.append(c)
-        node.time = t
-                
-        
-    # place the divergence time onto the label
-    for node in tree.postorder_node_iter():                
-        lb = node.taxon.label if node.is_leaf() else node.label
-        assert node.time is not None, "Failed to compute divergence time for node " + lb 
-        lb += "=" + str(node.time)
-        if node.is_leaf():
-            node.taxon.label = lb
-        else:
-            node.label = lb    
-                            
+    return s_tree,t_tree        
