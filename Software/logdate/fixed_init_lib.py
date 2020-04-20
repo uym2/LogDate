@@ -230,7 +230,7 @@ def print_date(tree):
     for node in tree.postorder_node_iter():
        if node.is_active:
            label = node.taxon.label if node.is_leaf() else node.label
-           print(label + " " + str(node.time))
+           #print(label + " " + str(node.time))
 
 def random_date_init(tree, sampling_time, rep, min_nleaf=3, seed=None):
     if seed is None:
