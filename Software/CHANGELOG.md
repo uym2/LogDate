@@ -1,5 +1,5 @@
 *  Vertion 1.4.0:
-    * Major release. Allow calibration for internal nodes. Requires unique labeling for all nodes and sampling times / calibration points are identified by node labels.
+    * Major release. Allow calibrations for internal nodes and allow missing sampling times for leaves; hard constraints only. Requires unique labeling for all nodes and sampling times / calibration points are identified by node labels.
 *  Version 1.3.1:
     * Added zero-length and verbose options. Remove options for LSD and LF. Remove options for scaling. Remove cvxpy requirement.  
 *  Version 1.3.0:
