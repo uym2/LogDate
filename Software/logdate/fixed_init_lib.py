@@ -104,12 +104,13 @@ def calibrate_set(tree,node_list):
             date_from_root_and_leaves(node)
             node.as_leaf = True
 
-# if the root has not been calibrated, now we have to calibrate it
+    # if the root has not been calibrated, now we have to calibrate it
     if tree.seed_node.time is None:
         preprocess_node(tree.seed_node)
         t = compute_date_as_root(tree.seed_node)
         tree.seed_node.time = t if t is not None else tree.seed_node.tmax - EPSILON_t
         date_from_root_and_leaves(tree.seed_node)
+    return tree.seed_node.time    
 
 def preprocess_node(a_node):
     stack = [(a_node,False)]
