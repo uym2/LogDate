@@ -14,7 +14,7 @@ param = {
     'include_package_data': True,
     'scripts' : ['launch_LogDate.py'],
     'zip_safe': True,
-    'install_requires': ['dendropy>=4.3.0','scipy>=1.3.1','bitsets>=0.7.15'],
+    'install_requires': ['dendropy>=4.3.0','scipy>=1.3.1','bitsets>=0.7.15','numpy>=1.18.5'],
     'keywords': 'Phylogenetics Evolution Biology',
     'long_description': """A Python implementation of the wLogDate algorithm""",
     'classifiers': ["Environment :: Console",

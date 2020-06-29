@@ -10,9 +10,14 @@ requirements:
   host:
     - python
     - setuptools
-
+  
+  build:
+    - python
+    - numpy 
+    
   run:
     - python
+    - numpy
 
 test:
   imports:
