@@ -158,7 +158,6 @@ def logDate_with_random_init(tree,f_obj,sampling_time,nrep=1,min_nleaf=3,maxIter
     smpl_times = setup_smpl_time(tree,sampling_time)
     
     X,seed,T0 = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,seed=seed)
-    print(T0)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
