@@ -51,4 +51,6 @@ Arguments include
 ```
 
 # Examples
-``` python launch_LogDate.py -i tests/D750_11_10_1_phyML_lnorm.tre -o myTimeTree.tre -t tests/D750_11_10_1_smplTime_1.txt ```
+```bash
+python launch_LogDate.py -i tests/D750_11_10_1_phyML_lnorm.tre -o myTimeTree.tre -t tests/D750_11_10_1_smplTime_1.txt 
+```
