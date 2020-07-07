@@ -1,10 +1,20 @@
 # Installation
 ## Download
-If you have git, you can simply clone the LogDate repository to your machine `git clone https://github.com/uym2/LogDate.git`. Otherwise, you can download the zip file to your machine.
-## Prerequisites
-- Anaconda with Python 3.7: highly recommended
-- Scipy 1.3.1: usually included with Anaconda
-- bitsets: https://pypi.org/project/bitsets/
+If you have Anaconda, you can install LogDate with conda install
+
+``` bash
+   conda install -c uym2 logdate 
+```  
+
+Alternatively, you can either clone the repository to your machine 
+```bash
+   git clone https://github.com/uym2/LogDate.git
+```
+or simply download the zip file. To install, go to the LogDate folder and type
+
+``` bash
+  python setup.py develop
+```
 
 # Usage
 ```bash
