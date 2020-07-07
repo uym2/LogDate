@@ -1,7 +1,7 @@
 import logdate
 from logdate.logD_lib import logDate_with_random_init,f_wLogDate
 from dendropy import Tree
-import dendropy
+from os import remove,path
 from logdate.tree_lib import tree_as_newick
 import argparse
 from sys import argv
@@ -13,7 +13,7 @@ print(" ".join(argv))
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-i","--input",required=True,help="Input trees")
-parser.add_argument("-t","--samplingTime",required=True,help="Sampling times / Calibration points")
+parser.add_argument("-t","--samplingTime",required=False,help="Sampling times / Calibration points. Default: root = 0 and all leaves = 1")
 parser.add_argument("-o","--output",required=True,help="Output trees")
 parser.add_argument("-v","--verbose",action='store_true',help="Show verbose message. Default: NO")
 parser.add_argument("-p","--rep",required=False,help="The number of random replicates for initialization. Default: use 1 initial point")
@@ -38,6 +38,9 @@ verbose = args["verbose"]
 
 with open(args["input"],'r') as fin:
     tree_strings = fin.readlines()
+
+if path.exists(args["output"]):
+    remove(args["output"])
 
 for treestr in tree_strings:  
     tree = Tree.get(data=treestr,schema='newick',preserve_underscores=True)
