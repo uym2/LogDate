@@ -1,5 +1,4 @@
 # Installation
-## Download
 If you have Anaconda, you can install LogDate with conda install
 
 ``` bash
@@ -25,7 +24,7 @@ launch_LogDate.py [-h] -i INPUT [-t SAMPLINGTIME] -o OUTPUT [-v]
 Arguments include
 
 ```bash
- -h, --help            show this help message and exit
+  -h, --help            show this help message and exit
   -i INPUT, --input INPUT
                         Input trees
   -t SAMPLINGTIME, --samplingTime SAMPLINGTIME
@@ -50,3 +49,6 @@ Arguments include
                         LogDate cannot process zero-length branches. Default:
                         1e-10
 ```
+
+# Examples
+``` python launch_LogDate.py -i tests/D750_11_10_1_phyML_lnorm.tre -o myTimeTree.tre -t tests/D750_11_10_1_smplTime_1.txt ```
