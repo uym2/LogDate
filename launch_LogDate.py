@@ -12,9 +12,9 @@ print(" ".join(argv))
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-i","--input",required=True,help="Input tree")
-parser.add_argument("-t","--samplingTime",required=True,help="Sampling times / Calibration points.")
-parser.add_argument("-o","--output",required=True,help="The output trees with branch lengths in time unit.")
+parser.add_argument("-i","--input",required=True,help="Input trees")
+parser.add_argument("-t","--samplingTime",required=True,help="Sampling times / Calibration points")
+parser.add_argument("-o","--output",required=True,help="Output trees")
 parser.add_argument("-v","--verbose",action='store_true',help="Show verbose message. Default: NO")
 parser.add_argument("-p","--rep",required=False,help="The number of random replicates for initialization. Default: use 1 initial point")
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
