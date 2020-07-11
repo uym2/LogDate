@@ -1,5 +1,5 @@
 *  Version 1.5.0:
-    * Major release. Restructure the code. Remove Dendropy folder and many redundant files. Activate installation by Pip and Anaconda.
+    * Major release. Restructure the code. Remove Dendropy folder and many redundant files. Activate installation by Anaconda. 
 *  Version 1.4.0:
     * Major release. Allow calibrations for internal nodes and allow missing sampling times for leaves, hard constraints only. Requires a unique label for each node; sampling times / calibration points are identified by node labels.
 *  Version 1.3.1:

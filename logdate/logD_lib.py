@@ -126,9 +126,18 @@ def logIt(tree,f_obj,cons_eq,b,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,ver
     
     return mu,fx,x_opt  
 
-def setup_smpl_time(tree,sampling_time):
+def setup_smpl_time(tree,sampling_time=None):
     smpl_times = {}
+    
+    # no sampling time given --> scale to unit tree
+    if not sampling_time:
+        tree.seed_node.label = "ROOT"
+        smpl_times["ROOT"] = 0
+        for node in tree.leaf_nodes():
+            smpl_times[node.taxon.label] = 1
+        return smpl_times    
 
+    # read in sampling times    
     with open(sampling_time,"r") as fin:
         for line in fin:
             name,time = line.split()
@@ -154,11 +163,10 @@ def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=Non
         fout.write(t_tree.as_string("newick"))
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,pseudo=0,seqLen=1000,verbose=False):
+def logDate_with_random_init(tree,f_obj,sampling_time=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,pseudo=0,seqLen=1000,verbose=False):
     smpl_times = setup_smpl_time(tree,sampling_time)
     
     X,seed,T0 = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,seed=seed)
-    print(T0)
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
