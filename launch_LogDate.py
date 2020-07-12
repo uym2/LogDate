@@ -16,6 +16,7 @@ parser.add_argument("-i","--input",required=True,help="Input trees")
 parser.add_argument("-t","--samplingTime",required=False,help="Sampling times / Calibration points. Default: root = 0 and all leaves = 1")
 parser.add_argument("-o","--output",required=True,help="Output trees")
 parser.add_argument("-v","--verbose",action='store_true',help="Show verbose message. Default: NO")
+parser.add_argument("-L","--label",action='store_true',help="Assign unique labels to internal nodes. LogDate uses the labels to identify calibration points. Use this option if your tree does not have unique label for each calibration point. Default: NO")
 parser.add_argument("-p","--rep",required=False,help="The number of random replicates for initialization. Default: use 1 initial point")
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
@@ -35,6 +36,7 @@ zero_len = float(args["zero"]) if args["zero"] else 1e-10
 
 f_obj = f_wLogDate
 verbose = args["verbose"]
+do_label = args["label"]
 
 with open(args["input"],'r') as fin:
     tree_strings = fin.readlines()
@@ -44,9 +46,18 @@ if path.exists(args["output"]):
 
 for treestr in tree_strings:  
     tree = Tree.get(data=treestr,schema='newick',preserve_underscores=True)
-    for node in tree.postorder_node_iter():
+    # labeling
+    if do_label:
+        nodeIdx = 0
+        for node in tree.preorder_node_iter():
+            if not node.is_leaf() and not node.label:
+                node.label = "I" + str(nodeIdx)
+                nodeIdx += 1
+    # handle zero-length branches
+    for node in tree.preorder_node_iter():            
         if node is not tree.seed_node and node.edge_length == 0:
             node.edge_length = zero_len
+    # dating        
     mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
     tree_as_newick(t_tree,outfile=args["output"],append=True)
     print("Clock rate: " + str(mu))

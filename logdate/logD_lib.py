@@ -17,6 +17,7 @@ from scipy.sparse import csr_matrix
 import dendropy
 from logdate.tree_lib import tree_as_newick
 from sys import stdout
+from logdate.lca_lib import find_LCAs
 
 MAX_ITER = 50000
 MIN_NU = 1e-12
@@ -137,12 +138,20 @@ def setup_smpl_time(tree,sampling_time=None):
             smpl_times[node.taxon.label] = 1
         return smpl_times    
 
-    # read in sampling times    
+    # read in sampling times   
+    queries = []
+    times = []
     with open(sampling_time,"r") as fin:
         for line in fin:
-            name,time = line.split()
-            smpl_times[name] = float(time)
-    
+            q,t = line.split()
+            q = q.split('+')
+            t = float(t)
+            queries.append(q)
+            times.append(t)
+    calibs = find_LCAs(tree,queries) 
+    for name,time in zip(calibs,times):
+        smpl_times[name] = time
+        
     return smpl_times   
     
 def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=None,min_nleaf=3,fout=stdout):
@@ -433,9 +442,6 @@ def compute_divergence_time(tree,sampling_time):
     for node in tree.postorder_node_iter():                
         lb = node.taxon.label if node.is_leaf() else node.label
         assert node.time is not None, "Failed to compute divergence time for node " + lb 
-        lb += "=" + str(node.time)
-        if node.is_leaf():
-            node.taxon.label = lb
-        else:
-            node.label = lb    
-                            
+        lb += "[t=" + str(node.time) + "]"
+        if not node.is_leaf():
+            node.label = lb            
