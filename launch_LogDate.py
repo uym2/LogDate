@@ -16,7 +16,7 @@ parser.add_argument("-i","--input",required=True,help="Input trees")
 parser.add_argument("-t","--samplingTime",required=False,help="Sampling times / Calibration points. Default: root = 0 and all leaves = 1")
 parser.add_argument("-o","--output",required=True,help="Output trees")
 parser.add_argument("-v","--verbose",action='store_true',help="Show verbose message. Default: NO")
-parser.add_argument("-L","--label",action='store_true',help="Assign unique labels to internal nodes. LogDate uses the labels to identify calibration points. Use this option if your tree does not have unique label for each calibration point. Default: NO")
+parser.add_argument("-k","--keeplabel",action='store_true',help="Suppress auto label assignment to internal nodes. WARNING: LogDate uses the labels to identify calibration points. Use this option only if your tree has UNIQUE LABELING FOR ALL nodes. Default: NO")
 parser.add_argument("-p","--rep",required=False,help="The number of random replicates for initialization. Default: use 1 initial point")
 parser.add_argument("-s","--rseed",required=False,help="Random seed to generate starting tree initial points")
 parser.add_argument("-l","--seqLen",required=False,help="The length of the sequences. Default: 1000")
@@ -36,7 +36,7 @@ zero_len = float(args["zero"]) if args["zero"] else 1e-10
 
 f_obj = f_wLogDate
 verbose = args["verbose"]
-do_label = args["label"]
+do_label = not args["keeplabel"]
 
 with open(args["input"],'r') as fin:
     tree_strings = fin.readlines()
@@ -50,7 +50,7 @@ for treestr in tree_strings:
     if do_label:
         nodeIdx = 0
         for node in tree.preorder_node_iter():
-            if not node.is_leaf() and not node.label:
+            if not node.is_leaf():
                 node.label = "I" + str(nodeIdx)
                 nodeIdx += 1
     # handle zero-length branches

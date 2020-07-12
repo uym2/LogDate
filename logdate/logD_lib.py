@@ -141,18 +141,33 @@ def setup_smpl_time(tree,sampling_time=None):
     # read in sampling times   
     queries = []
     times = []
+    names = []
     with open(sampling_time,"r") as fin:
         for line in fin:
-            q,t = line.split()
+            ID,t = line.split()
+            spl = ID.split('=')
+            if len(spl) > 1:
+                name,q = spl
+            else:
+                name = []
+                q = spl[0]    
             q = q.split('+')
             t = float(t)
             queries.append(q)
             times.append(t)
+            names.append(name)
     calibs = find_LCAs(tree,queries) 
-    for node,time in zip(calibs,times):
-        name = node.taxon.label if node.is_leaf() else node.label
-        smpl_times[name] = time
-        
+    nodeIdx = 0
+    for node,time,name in zip(calibs,times,names):
+        if name:
+            if node.is_leaf():
+                node.taxon.label = name
+            else:
+                node.label = name
+            lb = name
+        else:
+            lb = node.taxon.label if node.is_leaf() else node.label            
+        smpl_times[lb] = time        
     return smpl_times   
     
 def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=None,min_nleaf=3,fout=stdout):

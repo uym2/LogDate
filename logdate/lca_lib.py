@@ -85,9 +85,15 @@ with open(argv[2],'r') as fin:
         q,t = line.strip().split()
         queries.append(q.strip().split('+'))
 LCAs = find_LCAs(myTree,queries)
+nodeIdx = 0
 for q,lca in zip(queries,LCAs):
+    lb = lca.label if not lca.is_leaf() else lca.taxon.label
+    if not lb:
+        lca.label = "I" + str(nodeIdx)
+        nodeIdx += 1
     if lca.is_leaf():
         print(q,lca.taxon.label)
     else:
-        print(q,lca.label)    
-'''        
+        print(q,lca.label)   
+print(LCAs)         
+'''
