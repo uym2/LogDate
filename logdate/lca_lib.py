@@ -15,13 +15,13 @@ def find_LCAs(myTree,myQueries):
         F = {}
         def __traverse__(node,idx,h):
             lb = node.taxon.label if node.is_leaf() else node.label
-            E.append(lb)
-            H[lb] = h
+            E.append(node)
+            H[node] = h
             F[lb] = idx
             next_idx = idx+1
             for c in node.child_node_iter():
                 next_idx = __traverse__(c,next_idx,h+1)
-                E.append(node.label)
+                E.append(node)
                 next_idx += 1
             return next_idx    
         __traverse__(myTree.seed_node,0,1)
@@ -48,7 +48,7 @@ def find_LCAs(myTree,myQueries):
 
     def query_segment_tree(t,q,E,F,H):
         if len(q) == 1:
-            return q[0]
+            return E[F[q[0]]]
         a,b = q
         L = min(F[a],F[b])
         R = max(F[a],F[b])
@@ -72,7 +72,8 @@ def find_LCAs(myTree,myQueries):
     t = min_segment_tree(E,H)
     myLCAs = []
     for q in myQueries:
-        myLCAs.append(query_segment_tree(t,q,E,F,H))
+        lca = query_segment_tree(t,q,E,F,H)
+        myLCAs.append(lca)
     return myLCAs    
 
 '''
@@ -83,5 +84,10 @@ with open(argv[2],'r') as fin:
     for line in fin:
         q,t = line.strip().split()
         queries.append(q.strip().split('+'))
-print(find_LCAs(myTree,queries))
-'''
+LCAs = find_LCAs(myTree,queries)
+for q,lca in zip(queries,LCAs):
+    if lca.is_leaf():
+        print(q,lca.taxon.label)
+    else:
+        print(q,lca.label)    
+'''        

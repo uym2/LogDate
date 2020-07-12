@@ -149,7 +149,8 @@ def setup_smpl_time(tree,sampling_time=None):
             queries.append(q)
             times.append(t)
     calibs = find_LCAs(tree,queries) 
-    for name,time in zip(calibs,times):
+    for node,time in zip(calibs,times):
+        name = node.taxon.label if node.is_leaf() else node.label
         smpl_times[name] = time
         
     return smpl_times   
