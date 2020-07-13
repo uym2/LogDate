@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-i","--input",required=True,help="Input trees")
 parser.add_argument("-t","--samplingTime",required=False,help="Sampling times / Calibration points. Default: root = 0 and all leaves = 1")
+parser.add_argument("-b","--backward",action='store_true',help="Use backward time. Default: NO")
 parser.add_argument("-o","--output",required=True,help="Output trees")
 parser.add_argument("-v","--verbose",action='store_true',help="Show verbose message. Default: NO")
 parser.add_argument("-k","--keeplabel",action='store_true',help="Suppress auto label assignment to internal nodes. WARNING: LogDate uses the labels to identify calibration points. Use this option only if your tree has UNIQUE LABELING FOR ALL nodes. Default: NO")
@@ -37,6 +38,7 @@ zero_len = float(args["zero"]) if args["zero"] else 1e-10
 f_obj = f_wLogDate
 verbose = args["verbose"]
 do_label = not args["keeplabel"]
+bw_time = args["backward"]
 
 with open(args["input"],'r') as fin:
     tree_strings = fin.readlines()
@@ -58,7 +60,7 @@ for treestr in tree_strings:
         if node is not tree.seed_node and node.edge_length == 0:
             node.edge_length = zero_len
     # dating        
-    mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
+    mu,f,x,s_tree,t_tree = logDate_with_random_init(tree,f_obj,sampling_time,bw_time=bw_time,nrep=nrep,min_nleaf=10,maxIter=maxIter,seed=randseed,pseudo=pseudo,seqLen=seqLen,verbose=verbose)
     tree_as_newick(t_tree,outfile=args["output"],append=True)
     print("Clock rate: " + str(mu))
     print("Log score: " + str(f))

@@ -127,18 +127,16 @@ def logIt(tree,f_obj,cons_eq,b,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,ver
     
     return mu,fx,x_opt  
 
-def setup_smpl_time(tree,sampling_time=None):
-    smpl_times = {}
-    
-    # no sampling time given --> scale to unit tree
+def setup_smpl_time(tree,sampling_time=None,bw_time=False):
+    smpl_times = {}    
+    # case 1: no sampling time given --> scale to unit tree
     if not sampling_time:
         tree.seed_node.label = "ROOT"
         smpl_times["ROOT"] = 0
         for node in tree.leaf_nodes():
             smpl_times[node.taxon.label] = 1
         return smpl_times    
-
-    # read in sampling times   
+    # case 2: read in user-specified sampling times   
     queries = []
     times = []
     names = []
@@ -152,7 +150,7 @@ def setup_smpl_time(tree,sampling_time=None):
                 name = []
                 q = spl[0]    
             q = q.split('+')
-            t = float(t)
+            t = float(t) if not bw_time else -float(t)
             queries.append(q)
             times.append(t)
             names.append(name)
@@ -188,10 +186,10 @@ def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=Non
         fout.write(t_tree.as_string("newick"))
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,pseudo=0,seqLen=1000,verbose=False):
-    smpl_times = setup_smpl_time(tree,sampling_time)
-    
+def logDate_with_random_init(tree,f_obj,sampling_time=None,bw_time=False,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,pseudo=0,seqLen=1000,verbose=False):
+    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,bw_time=bw_time)    
     X,seed,T0 = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,seed=seed)
+    
     print("Finished initialization with random seed " + str(seed))
     f_min = None
     x_best = None
@@ -210,16 +208,11 @@ def logDate_with_random_init(tree,f_obj,sampling_time=None,nrep=1,min_nleaf=3,ma
         if f_min is None or f < f_min:
             f_min = f
             x_best = x
-            #print(x_best)
             s_tree,t_tree = scale_tree(tree,x_best)
-            compute_divergence_time(t_tree,smpl_times)
+            compute_divergence_time(t_tree,smpl_times,bw_time=bw_time)
             print("Found a better log-scored configuration")
             print("New mutation rate: " + str(x_best[-2]))
             print("New log score: " + str(f_min))
-            #print("Scaled tree")
-            #print(s_tree.as_string("newick"))
-            #print("Time tree")
-            #print(t_tree.as_string("newick"))
     
     mu = x_best[-2]
     return mu,f_min,x_best,s_tree,t_tree 
@@ -412,7 +405,7 @@ def scale_tree(tree,x):
 
     return s_tree,t_tree    
     
-def compute_divergence_time(tree,sampling_time):
+def compute_divergence_time(tree,sampling_time,bw_time=False):
 # compute and place the divergence time onto the node label of the tree
 # must have at least one sampling time. Assumming the tree branches have been
 # converted to time unit and are consistent with the given sampling_time
@@ -458,6 +451,6 @@ def compute_divergence_time(tree,sampling_time):
     for node in tree.postorder_node_iter():                
         lb = node.taxon.label if node.is_leaf() else node.label
         assert node.time is not None, "Failed to compute divergence time for node " + lb 
-        lb += "[t=" + str(node.time) + "]"
+        lb += "[t=" + (str(node.time) if not bw_time else str(-node.time)) + "]" 
         if not node.is_leaf():
             node.label = lb            
