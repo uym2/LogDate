@@ -47,11 +47,8 @@ def find_LCAs(myTree,myQueries):
         return t                          
 
     def query_segment_tree(t,q,E,F,H):
-        if len(q) == 1:
-            return E[F[q[0]]]
-        a,b = q
-        L = min(F[a],F[b])
-        R = max(F[a],F[b])
+        L = min(F[a] for a in q)
+        R = max(F[a] for a in q)
         def __query__(node,b,e,L,R):
             if (R < b or L > e):
                 return None
@@ -83,7 +80,7 @@ queries = []
 with open(argv[2],'r') as fin:
     for line in fin:
         q,t = line.strip().split()
-        queries.append(q.strip().split('+'))
+        queries.append(q.strip().split('=')[-1].split('+'))
 LCAs = find_LCAs(myTree,queries)
 nodeIdx = 0
 for q,lca in zip(queries,LCAs):
@@ -94,6 +91,5 @@ for q,lca in zip(queries,LCAs):
     if lca.is_leaf():
         print(q,lca.taxon.label)
     else:
-        print(q,lca.label)   
-print(LCAs)         
-'''
+        print(q,lca.label)  
+'''         
