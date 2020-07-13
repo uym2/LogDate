@@ -63,7 +63,7 @@ def find_LCAs(myTree,myQueries):
                 return left
             return left if H[left] < H[right] else right        
 
-        return __query__(1,0,len(E),L,R)
+        return __query__(1,0,len(E)-1,L,R)
 
     E,F,H = euler_tour()
     t = min_segment_tree(E,H)
@@ -92,4 +92,4 @@ for q,lca in zip(queries,LCAs):
         print(q,lca.taxon.label)
     else:
         print(q,lca.label)  
-'''         
+'''        
