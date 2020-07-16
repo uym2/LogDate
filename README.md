@@ -25,7 +25,7 @@ If there is no calibrations given, LogDate will infer the unit (depth 1) ultrame
    launch_LogDate.py -i <INPUT_TREE> -o <OUTPUT_TREE>
 ```
 
-We give an example in folder `examples/unit_time_tree`, inside which you can find the sampled input tree `phylogram.nwk` and the sampled output tree `chronogram_unit.nwk`.
+We give an example in folder [examples/unit_time_tree](examples/unit_time_tree), inside which you can find the sampled input tree `phylogram.nwk` and the sampled output tree `chronogram_unit.nwk`.
 
 ```bash
    cd examples/unit_time_tree
