@@ -18,7 +18,7 @@ or simply download the zip file to your machine. To install, go to the LogDate f
 # Usage
 LogDate accepts both calibration points (hard constraint on divergence time) of internal nodes and sampling times at leaf nodes, and a mixture of them. Here we give examples for the three most common use-cases:
 
-## Use case 1: infer the unit ultrametric tree
+## Use case 1: Infer the unit ultrametric tree
 If there is no calibrations given, LogDate will infer the unit (depth 1) ultrametric tree from an input tree.
 
 ``` bash
@@ -34,7 +34,7 @@ We give an example in folder `examples/unit_time_tree`, inside which you can fin
 
 Here we use `-s` to specify a random seed. With the correct random seed given, the output file `wLogDate.nwk` should be an exact replicate of `chronogram_unit.nwk`.
 
-## Use case 2: infer the time tree from phylodynamics data
+## Use case 2: Infer the time tree from phylodynamics data
 A typical use-case in virus phylogeny is to infer the time tree from a phylogram inferred from sequences and their sampling times (i.e. calibration points given at leaf nodes). LogDate reads the calibration points / sampling times from an input file via the `-t` option.
 
 ```bash
@@ -60,4 +60,24 @@ LogDate allows missing sampling times for a subset of the leaves, as long as the
 ```
 
 ### 2.3. Sampling times at internal nodes
-LogDate allows the sampling times to be given both internal nodes and at leaves. An example is given in the folder `example/virus_internal_smplTime`. Here we use the node label to identify the internal nodes (see `example/virus_internal_smplTime/sampling_time.txt`). 
+LogDate allows the sampling times to be given both internal nodes and at leaves. An example is given in the folder `example/virus_internal_smplTime`. In the example tree, we have all of the nodes (including leaf nodes and internal nodes) has a unique label. If the tree has unique labeling, LogDate allows the calibrations to be specified by their labels. See `example/virus_internal_smplTime/sampling_time.txt`) for an example. 
+
+```bash
+   cd examples/virus_internal_smplTime
+   python launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105 -k
+```
+The `-k` flag (or `--keep`) is used to announce LogDate that the tree has already had unique labeling and suppress the auto-label of LogDate.
+
+
+## Use case 3: Infer the time tree with calibration points given in backward time
+For calibration points obtained from fossils, the times are usually referred to as backward time such as "million years ago", or "mya". For your convenience, LogDate allows specification backward time via the `-b` flag.
+
+```bash
+   python launch_LogDate -i <INPUT_TREE> -o <OUTPUT_TREE> -t <CALIBRATIONS> -b
+```
+Calibration points can be given in the same way as sampling times. If the tree nodes are uniquely labeled, we can use the labels to identify the internal nodes associated with the calibration points. Alternatively, LogDate allows the identification of a node as the LCA of a set of species and allows optional label assignment to these calibration points. See `examples/fossil_backward_time/calibrations.txt` for an example. See the next section for more details about our conventions on the calibrations.
+
+```bash
+   cd examples/fossil_backward_time
+   python launch_LogDate.py -i phylogram.nwk -t calibrations.txt -o wLogDate.nwk -b -s 1105
+```
