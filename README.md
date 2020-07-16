@@ -16,20 +16,20 @@ or simply download the zip file to your machine. To install, go to the LogDate f
 ```
 
 # Usage
-LogDate accepts both calibration points (hard constraint on divergence time) of internal nodes and sampling times at leaf nodes, and a mixture of them. Here we give examples for the three most common use-cases:
+LogDate accepts calibration points (hard constraint on divergence time) for internal nodes, sampling times at leaf nodes, and a mixture of the two. Here we give examples for the three most common use-cases:
 
 ## Use case 1: Infer the unit ultrametric tree
 If there is no calibrations given, LogDate will infer the unit (depth 1) ultrametric tree from an input tree.
 
 ``` bash
-   python launch_LogDate.py -i <INPUT_TREE> -o <OUTPUT_TREE>
+   launch_LogDate.py -i <INPUT_TREE> -o <OUTPUT_TREE>
 ```
 
 We give an example in folder `examples/unit_time_tree`, inside which you can find the sampled input tree `phylogram.nwk` and the sampled output tree `chronogram_unit.nwk`.
 
 ```bash
    cd examples/unit_time_tree
-   python launch_LogDate -i phylogram.nwk -o wLogDate.nwk -s 1105
+   launch_LogDate -i phylogram.nwk -o wLogDate.nwk -s 1105
 ```
 
 Here we use `-s` to specify a random seed. With the correct random seed given, the output file `wLogDate.nwk` should be an exact replicate of `chronogram_unit.nwk`.
@@ -38,7 +38,7 @@ Here we use `-s` to specify a random seed. With the correct random seed given, t
 A typical use-case in virus phylogeny is to infer the time tree from a phylogram inferred from sequences and their sampling times (i.e. calibration points given at leaf nodes). LogDate reads the calibration points / sampling times from an input file via the `-t` option.
 
 ```bash
-   python launch_LogDate -i <INPUT_TREE> -o <OUTPUT_TREE> -t <SAMPLING_TIMES>
+   launch_LogDate -i <INPUT_TREE> -o <OUTPUT_TREE> -t <SAMPLING_TIMES>
 ```
 
 ### 2.1. Complete sampling times
@@ -46,7 +46,7 @@ An example is given in the folder `examples/virus_all_samplingTime`, inside whic
 
 ```bash
    cd examples/virus_all_samplingTime
-   python launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105
+   launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105
 ```
 
 Again, `-s` is used to specify the random seed. Your output (`wLogDate.nwk`) should be an exact replicate of `chronogram.nwk`.
@@ -56,7 +56,7 @@ LogDate allows missing sampling times for a subset of the leaves, as long as the
 
 ```bash
    cd examples/virus_some_samplingTime
-   python launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105
+   launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105
 ```
 
 ### 2.3. Sampling times at internal nodes
@@ -64,7 +64,7 @@ LogDate allows the sampling times to be given both internal nodes and at leaves.
 
 ```bash
    cd examples/virus_internal_smplTime
-   python launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105 -k
+   launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105 -k
 ```
 The `-k` flag (or `--keep`) is used to announce LogDate that the tree has already had unique labeling and suppress the auto-label of LogDate.
 
@@ -73,11 +73,11 @@ The `-k` flag (or `--keep`) is used to announce LogDate that the tree has alread
 For calibration points obtained from fossils, the times are usually referred to as backward time such as "million years ago", or "mya". For your convenience, LogDate allows specification backward time via the `-b` flag.
 
 ```bash
-   python launch_LogDate -i <INPUT_TREE> -o <OUTPUT_TREE> -t <CALIBRATIONS> -b
+   launch_LogDate -i <INPUT_TREE> -o <OUTPUT_TREE> -t <CALIBRATIONS> -b
 ```
 Calibration points can be given in the same way as sampling times. If the tree nodes are uniquely labeled, we can use the labels to identify the internal nodes associated with the calibration points. Alternatively, LogDate allows the identification of a node as the LCA of a set of species and allows optional label assignment to these calibration points. See `examples/fossil_backward_time/calibrations.txt` for an example. See the next section for more details about our conventions on the calibrations.
 
 ```bash
    cd examples/fossil_backward_time
-   python launch_LogDate.py -i phylogram.nwk -t calibrations.txt -o wLogDate.nwk -b -s 1105
+   launch_LogDate.py -i phylogram.nwk -t calibrations.txt -o wLogDate.nwk -b -s 1105
 ```
