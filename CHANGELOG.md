@@ -1,5 +1,10 @@
 *  Version 1.5.0:
-    * Major release. Restructure the code. Remove Dendropy folder and many redundant files. Activate installation by Anaconda. 
+    * Major release. 
+        + Restructure the code: removed Dendropy folder and many redundant files. 
+        + Activate installation by Anaconda. 
+        + Allow backward time specification via -b flag
+        + Perform automatic label assignment and allow suppression by -k flag
+        + Allow each calibration point to be specified as LCA of a list of species
 *  Version 1.4.0:
     * Major release. Allow calibrations for internal nodes and allow missing sampling times for leaves, hard constraints only. Requires a unique label for each node; sampling times / calibration points are identified by node labels.
 *  Version 1.3.1:

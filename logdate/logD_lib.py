@@ -127,16 +127,19 @@ def logIt(tree,f_obj,cons_eq,b,x0=None,maxIter=MAX_ITER,pseudo=0,seqLen=1000,ver
     
     return mu,fx,x_opt  
 
-def setup_smpl_time(tree,sampling_time=None,bw_time=False):
-    smpl_times = {}    
-    # case 1: no sampling time given --> scale to unit tree
-    if not sampling_time:
-        tree.seed_node.label = "ROOT"
-        smpl_times["ROOT"] = 0
+def setup_smpl_time(tree,sampling_time=None,bw_time=False,root_time=0,leaf_time=1):
+    smpl_times = {}   
+    if root_time is not None: 
+        smpl_times[tree.seed_node.label] = root_time if not bw_time else -root_time
+    if leaf_time is not None:    
         for node in tree.leaf_nodes():
-            smpl_times[node.taxon.label] = 1
-        return smpl_times    
-    # case 2: read in user-specified sampling times   
+            smpl_times[node.taxon.label] = leaf_time if not bw_time else -leaf_time
+    
+    # case 1: no sampling time given --> return the smpl_times defined by root_time and leaf_time
+    if not sampling_time:
+        return smpl_times
+    
+    # case 2: read in user-specified sampling times; allow overriding root and leaf times
     queries = []
     times = []
     names = []
@@ -186,8 +189,8 @@ def random_timetree(tree,sampling_time,nrep,seed=None,root_age=None,leaf_age=Non
         fout.write(t_tree.as_string("newick"))
     
 
-def logDate_with_random_init(tree,f_obj,sampling_time=None,bw_time=False,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,pseudo=0,seqLen=1000,verbose=False):
-    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,bw_time=bw_time)    
+def logDate_with_random_init(tree,f_obj,sampling_time=None,bw_time=False,root_time=0,leaf_time=1,nrep=1,min_nleaf=3,maxIter=MAX_ITER,seed=None,pseudo=0,seqLen=1000,verbose=False):
+    smpl_times = setup_smpl_time(tree,sampling_time=sampling_time,bw_time=bw_time,root_time=root_time,leaf_time=leaf_time)    
     X,seed,T0 = random_date_init(tree,smpl_times,nrep,min_nleaf=min_nleaf,seed=seed)
     
     print("Finished initialization with random seed " + str(seed))
