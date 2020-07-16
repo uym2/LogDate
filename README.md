@@ -48,4 +48,4 @@ An example is given in the folder `examples/virus_all_samplingTime`, inside whic
    python launch_LogDate -i phylogram.nwk -o wLogDate.nwk -t sampling.time.txt -s 1105
 ```
 
-Again, `-s` is used to specify the random seed. You output (`wLogDate.nwk`) should be an exact replicate of `chronogram.nwk`.
+Again, `-s` is used to specify the random seed. Your output (`wLogDate.nwk`) should be an exact replicate of `chronogram.nwk`.
