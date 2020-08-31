@@ -1,4 +1,4 @@
-The LogDate repository is not maintained any more. Please visit the new repo at (https://github.com/uym2/wLogDate)
+The LogDate repository is not maintained any more. Please visit the new repo at https://github.com/uym2/wLogDate
 # Installation
 If you have Anaconda, you can install LogDate with conda install
 
